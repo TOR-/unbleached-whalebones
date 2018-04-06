@@ -21,8 +21,7 @@ static int socketCount = 0;  // number of sockets created
 
 // ======================================================================
 
-/*  Function to create a socket for use with TCP and IPv4.
-    It first starts the WSA system if this has not been done already.  */
+/*  Function to create a socket for use with TCP and IPv4. */
 SOCKET TCPcreateSocket (void)
 {
     SOCKET mySocket = INVALID_SOCKET;  // identifier for socket

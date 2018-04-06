@@ -102,5 +102,16 @@ int main(int argc, char ** argv)
 	}
 	if(verbose) printf("client: verbose mode enabled\n");
 	if(verbose) printf("Running in mode %d\n", mode);
+
+
+	// CONNECT TO SERVER
+	// READ & TRANSFER FILE
+	//	DETERMINE FILE LENGTH
+	//	READ FILE INTO BUFFER
+	//		TODO: transfer in chunks
+	//	COMPOSE HEADERS
+	//	ADD DATA
+	//	SEND
+	// MORE FILES TO TRANSFER? REPEAT:CLOSE CONNECTION
 	return EXIT_SUCCESS;
 }
