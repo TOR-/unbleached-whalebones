@@ -27,6 +27,14 @@
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 
+typedef enum Bool {FALSE, TRUE};
+/*void error(const char *msg){
+
+    perror(msg);
+    exit(1);
+
+}*/
+
 int main()
 {
     // Create variables needed by this function
@@ -70,7 +78,7 @@ int main()
 // ============== RECEIVE REQUEST ======================================
 
     // Loop to receive data from the client, until the end marker is found
-    while (stop == 0)   // loop is controlled by the stop flag
+    while (FALSE == stop)   // loop is controlled by the stop flag
     {
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
@@ -82,7 +90,7 @@ int main()
         if( numRx < 0)  // check for error
         {
             printf("Problem receiving, maybe connection closed by client?\n");
-            printError();   // give details of the error
+            printError(Server: ERR handling req. No bytes received.);   // give details of the error
             stop = 1;   // set the flag to end the loop
         }
         else if (numRx == 0)  // indicates connection closing (but not an error)
@@ -92,9 +100,12 @@ int main()
         }
         else // numRx > 0 => we got some data from the client
         {
+            printf("Server: REQ received\n", );
             request[numRx] = 0;  // add 0 byte to make request into a string
             // Print details of the request
             printf("\nRequest received, %d bytes: '%s'\n", numRx, request);
+
+            /*Search request and see how server should respond.*/
 
             // Check to see if the request contains the end marker
             loc = memchr(request, ENDMARK, numRx);  // search the array
