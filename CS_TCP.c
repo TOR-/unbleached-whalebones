@@ -23,16 +23,15 @@ static int socketCount = 0;  // number of sockets created
 
 /*  Function to create a socket for use with TCP and IPv4.
     It first starts the WSA system if this has not been done already.  */
-SOCKET TCPcreateSocket (void)
+SOCKET TCPSocket (int address_family)
 {
     SOCKET mySocket = INVALID_SOCKET;  // identifier for socket
     int retVal;     // return value from function
 
     // Now create the socket as requested.
-    // AF_INET means IP version 4,
     // SOCK_STREAM means the socket works with streams of bytes,
     // IPPROTO_TCP means TCP transport protocol.
-    mySocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    mySocket = socket(address_family, SOCK_STREAM, IPPROTO_TCP);
 
     if (mySocket == INVALID_SOCKET)  // check for error
     {
@@ -268,22 +267,3 @@ int getIPaddress(char * hostName, struct in_addr * IPaddr, char * IPaddrStr)
 
 }  // end of getIPaddress
 
-
-// ======================================================================
-
-/* Function to print error messages when something goes wrong.
-   No arguments needed - it finds the problem in the WSA structure.*/
-void printError(void)
-{
-/*
-	FormatMessage(
-		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		errCode,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		lastError,
-		1024,
-		NULL);  // convert error code to error message
-*/
-		printf("Error Code %d = %s\n", errno, gai_strerror(errno));
-}  // end of printError

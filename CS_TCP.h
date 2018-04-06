@@ -6,7 +6,7 @@
 
 /*  Function to create a socket for use with TCP and IPv4.
     It first starts the WSA system if this has not been done already.  */
-SOCKET TCPcreateSocket (void);
+SOCKET TCPSocket (int address_family);
 
 /*  Function to set up a server for use with TCP and IPv4.
     Arguments are an existing socket to use, and a port number.
