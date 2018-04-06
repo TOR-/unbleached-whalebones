@@ -18,6 +18,7 @@ Request:
 		<header><LF>
 			⋯
 		<header><LF>
+		<LF>
 		<data>
 
 	<command> - List of commands given in § COMMAND. Terminated by a line-feed character (denoted <LF>).
