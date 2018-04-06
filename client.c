@@ -14,14 +14,21 @@
 #include "CS_TCP.h"
 
 static bool verbose;
+
 enum Mode {NONE, GIFT, WEASEL, LIST};
+char * mode_strs[] = {"", "GIFT", "WEASEL", "LIST"};
+
+/* Functions for mode-specific operations*/
+static int gift(char ** request, const char * filepath);
+static int weasel(char ** request, const char * filepath);
+static int list(char ** request, const char * filepath);
+/* Array of pointers to mode-specific operation functions */
+static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
 
-static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port);
-
-static int weasel(char * filepath, FILE * file);
+static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t port);
 
 int main(int argc, char ** argv)
 {
@@ -46,10 +53,14 @@ int main(int argc, char ** argv)
 	SOCKET sockfd = TCPSocket(AF_INET);
 
 	// connect server
-	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
-		return EXIT_FAILURE;
+	//if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
+	//	return EXIT_FAILURE;
 	// now connected
 	// mode switch: WEASEL, GIFT, LIST
+	
+	char * header; // Pointer to header portion of request 
+	weasel(&header, filepath);
+	free(header);
 
 	// transfer file
 	// 	read file TODO: transfer in chunks
@@ -59,9 +70,67 @@ int main(int argc, char ** argv)
     return EXIT_SUCCESS;
 }
 
-static int weasel(char * filepath, FILE * file)
+/* appends <name>:<content>\n
+ * returns status code */
+int append_header(char ** header, char * name, char * content)
 {
+	char * newheader;
+	if(NULL == (newheader = (char *) malloc(strlen(*header) + strlen(name) + strlen(content) + 3)))
+		 // +3 because of ':', '\n', '\0'
+	{
+		fprintf(stderr, "append-header: failed to allocate memory for header.\n");
+		return EXIT_FAILURE;
+	}
+	if(sprintf(newheader, "%s%s:%s\n", *header, name, content) <= 0)
+		fprintf(stderr, "append-header: failed to add header.\n");
 
+	char * headers_tmp = (char *) realloc(*header, strlen(newheader) + 1);
+	if(NULL == headers_tmp)
+	{
+		fprintf(stderr, "append-header: failed to allocate memory for header.\n");
+		return EXIT_FAILURE;
+	}
+	*header = headers_tmp;
+	strcpy(*header, newheader);
+	free(newheader);
+	return EXIT_SUCCESS;
+}
+
+static int request(enum Mode mode, char ** request, const char * filepath){
+	int err = 0;
+	// Add command to header
+	// Allocate memory
+	if(NULL == (*request = (char *) malloc(strlen(mode_strs[mode]) + 1 + strlen(filepath) + 2)))
+	{
+		fprintf(stderr, "request: failed to allocate memory.\n");
+		exit(EXIT_FAILURE);
+	}
+	// Write command to memory
+	if(1 > sprintf(*request, "%s %s\n", mode_strs[mode], filepath))
+	{
+		fprintf(stderr, "request: failed to create command line.\n");
+		exit(EXIT_FAILURE);
+	}
+	// Append headers as appropriate
+	// Headers common to all requests go here
+	// int append_header(char ** header, char * name, char * content)
+	
+	// Call individual request constructors
+	return EXIT_SUCCESS;	
+}
+static int weasel(char ** request, const char * filepath)
+{
+	if(NULL == (*request = (char *) malloc(strlen("WEASEL ") + strlen(filepath) + 2)))
+	{
+		fprintf(stderr, "weasel: failed to allocate memory.\n");
+		exit(EXIT_FAILURE);
+	}
+	if(sprintf(*request, "%s%s\n", "WEASEL ", filepath) < 1)
+		fprintf(stderr, "weasel: failed to add command.\n");
+	printf("weasel:%s\n", *request);	
+	// How many headers?
+	
+	return 0;
 }
 
 static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port)
@@ -165,3 +234,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
     }
     return filepath;
 }
+static int gift(char ** request, const char * filepath)
+{ return EXIT_FAILURE; }
+static int list(char ** request, const char * filepath)
+{ return EXIT_FAILURE; }
