@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,11 +17,11 @@ static bool verbose;
 enum Mode {NONE, GIFT, WEASEL, LIST};
 
 #define IPV4LEN 12
-#define PORTLEN 6
 
 int main(int argc, char ** argv)
 {
-	char * filepath, ip[IPV4LEN], port[PORTLEN];
+	char * filepath, ip[IPV4LEN];
+   	uint16_t port;
 	enum Mode mode = NONE;
 	char optc; // Option character
 	int opti = 0; // Index into option array
@@ -94,7 +95,13 @@ int main(int argc, char ** argv)
 				strcpy(ip, optarg);
 				break;
 			case 'p':
-				strcpy(port, optard);
+				if(sscanf(optarg, "%hu", &port) <= 0)
+				{
+					fprintf(stderr,
+							"client: invalid port number %s %s\n",
+							optarg, gai_strerror(errno));
+					exit(EXIT_FAILURE);
+				}
 				break;
 			case 'h':
 			case '?': // Unrecognised option, error message printed by getopt_long
@@ -115,5 +122,14 @@ int main(int argc, char ** argv)
 	}
 	if(verbose) printf("client: verbose mode enabled\n");
 	if(verbose) printf("Running in mode %d\n", mode);
+
+	SOCKET sockfd = TCPSocket(AF_INET);
+
+	// connect server
+	// transfer file
+	// 	read file TODO: transfer in chunks
+	// 	construct headers
+	// 	construct message
+	// more files? repeat:close
 	return EXIT_SUCCESS;
 }
