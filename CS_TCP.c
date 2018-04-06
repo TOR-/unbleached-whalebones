@@ -166,8 +166,7 @@ int TCPclientConnect (
     }
     else
     {
-        printf("Connected!\n");  // now connected to server
-        return 0;   // success
+        return EXIT_SUCCESS;
     }
 
 }  // end of TCPclientConnect

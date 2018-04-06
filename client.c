@@ -19,12 +19,14 @@ enum Mode {NONE, GIFT, WEASEL, LIST};
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
 
-char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port);
+static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port);
+
+static int weasel(char * filepath, FILE * file);
 
 int main(int argc, char ** argv)
 {
     char * filepath, ip[IPV4LEN];
-	uint16_t port
+	uint16_t port;
     enum Mode mode = NONE;
 
     // Set flag default values
@@ -33,7 +35,10 @@ int main(int argc, char ** argv)
     filepath = process_input(argc, argv, &mode, &verbose, ip, port);
 
     if(filepath == NULL)
+	{
+		fprintf(stderr, "No file specified.\n");
         return EXIT_FAILURE;
+	}
 
     if(verbose) printf("client: verbose mode enabled\n");
     if(verbose) printf("Running in mode %d\n", mode);
@@ -41,6 +46,11 @@ int main(int argc, char ** argv)
 	SOCKET sockfd = TCPSocket(AF_INET);
 
 	// connect server
+	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
+		return EXIT_FAILURE;
+	// now connected
+	// mode switch: WEASEL, GIFT, LIST
+
 	// transfer file
 	// 	read file TODO: transfer in chunks
 	// 	construct headers
@@ -49,7 +59,12 @@ int main(int argc, char ** argv)
     return EXIT_SUCCESS;
 }
 
-char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port)
+static int weasel(char * filepath, FILE * file)
+{
+
+}
+
+static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port)
 {
     char optc; // Option character
     int opti = 0; // Index into option array
