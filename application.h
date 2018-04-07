@@ -7,6 +7,6 @@ enum Mode {NONE, GIFT, WEASEL, LIST};
 char * mode_strs[] = {"", "GIFT", "WEASEL", "LIST"};
 
 int append_header(char ** header, char * name, char * content);
-int finish_headers(char ** headers)
+int finish_headers(char ** headers);
 
 #endif
