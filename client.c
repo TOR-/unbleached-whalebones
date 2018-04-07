@@ -28,13 +28,12 @@ static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 #define OPTSTRING "vqg:w:l:hi:p:"
 #define READ_ONLY "r"
 
-static int weasel(char * filepath, FILE * file);
 static int   gift_client(char *filepath, bool verbose);
 static char* gift_header(char *filepath, long int file_size, bool verbose);
 static char* gift_data(FILE* input_file, bool verbose, char* gift_request);
 static int   gift_send(char *gift_request, bool verbose);
 static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
-static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t port);
+static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
 
 int main(int argc, char ** argv)
 {
@@ -106,7 +105,7 @@ static int weasel(char ** requestbuf, const char * filepath)
 {
 	// How many headers?
 	// None?
-	finish_headers(&requestbuf);
+	finish_headers(requestbuf);
 	return 0;
 }
 static int gift(char ** requestbuf, const char * filepath)
@@ -217,6 +216,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 	}
 	return filepath;
 }
+
 int gift_client(char *filepath, bool verbose)
 {
     FILE *input_file;
