@@ -12,16 +12,15 @@
 #include <netdb.h>
 
 #include "CS_TCP.h"
+#include "application.h"
 
-static bool verbose;
+/* Mode-agnostic request construction */
+static int request(enum Mode mode, char ** requestbuf, const char * filepath);
 
-enum Mode {NONE, GIFT, WEASEL, LIST};
-char * mode_strs[] = {"", "GIFT", "WEASEL", "LIST"};
-
-/* Functions for mode-specific operations*/
-static int gift(char ** request, const char * filepath);
-static int weasel(char ** request, const char * filepath);
-static int list(char ** request, const char * filepath);
+/* Mode-specific request construction */
+static int gift(char ** requestbuf, const char * filepath);
+static int weasel(char ** requestbuf, const char * filepath);
+static int list(char ** requestbuf, const char * filepath);
 /* Array of pointers to mode-specific operation functions */
 static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 
@@ -32,23 +31,23 @@ static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbo
 
 int main(int argc, char ** argv)
 {
-    char * filepath, ip[IPV4LEN];
+	char * filepath, ip[IPV4LEN];
 	uint16_t port;
-    enum Mode mode = NONE;
+	enum Mode mode = NONE;
 
-    // Set flag default values
-    verbose = false;
+	// Set flag default values
+	verbose = false;
 
-    filepath = process_input(argc, argv, &mode, &verbose, ip, port);
+	filepath = process_input(argc, argv, &mode, &verbose, ip, port);
 
-    if(filepath == NULL)
+	if(filepath == NULL)
 	{
 		fprintf(stderr, "No file specified.\n");
-        return EXIT_FAILURE;
+		return EXIT_FAILURE;
 	}
 
-    if(verbose) printf("client: verbose mode enabled\n");
-    if(verbose) printf("Running in mode %d\n", mode);
+	if(verbose) printf("client: verbose mode enabled\n");
+	if(verbose) printf("Running in mode %d\n", mode);
 
 	SOCKET sockfd = TCPSocket(AF_INET);
 
@@ -57,156 +56,130 @@ int main(int argc, char ** argv)
 	//	return EXIT_FAILURE;
 	// now connected
 	// mode switch: WEASEL, GIFT, LIST
-	
-	char * header; // Pointer to header portion of request 
-	weasel(&header, filepath);
-	free(header);
-
-	// transfer file
-	// 	read file TODO: transfer in chunks
-	// 	construct headers
-	// 	construct message
-	// more files? repeat:close
-    return EXIT_SUCCESS;
-}
-
-/* appends <name>:<content>\n
- * returns status code */
-int append_header(char ** header, char * name, char * content)
-{
-	char * newheader;
-	if(NULL == (newheader = (char *) malloc(strlen(*header) + strlen(name) + strlen(content) + 3)))
-		 // +3 because of ':', '\n', '\0'
-	{
-		fprintf(stderr, "append-header: failed to allocate memory for header.\n");
+	char * requestbuf;
+	if(0 != request(mode, &requestbuf, filepath))
 		return EXIT_FAILURE;
-	}
-	if(sprintf(newheader, "%s%s:%s\n", *header, name, content) <= 0)
-		fprintf(stderr, "append-header: failed to add header.\n");
-
-	char * headers_tmp = (char *) realloc(*header, strlen(newheader) + 1);
-	if(NULL == headers_tmp)
-	{
-		fprintf(stderr, "append-header: failed to allocate memory for header.\n");
-		return EXIT_FAILURE;
-	}
-	*header = headers_tmp;
-	strcpy(*header, newheader);
-	free(newheader);
+	printf("client: sending request:\n>>>\n%s\n<<<\n", requestbuf);
 	return EXIT_SUCCESS;
 }
 
-static int request(enum Mode mode, char ** request, const char * filepath){
+static int request(enum Mode mode, char ** requestbuf, const char * filepath)
+{
 	int err = 0;
 	// Add command to header
 	// Allocate memory
-	if(NULL == (*request = (char *) malloc(strlen(mode_strs[mode]) + 1 + strlen(filepath) + 2)))
+	if(NULL == (*requestbuf = (char *) malloc(strlen(mode_strs[mode]) + 1 + strlen(filepath) + 2)))
 	{
 		fprintf(stderr, "request: failed to allocate memory.\n");
 		exit(EXIT_FAILURE);
 	}
 	// Write command to memory
-	if(1 > sprintf(*request, "%s %s\n", mode_strs[mode], filepath))
+	if(1 > sprintf(*requestbuf, "%s %s\n", mode_strs[mode], filepath))
 	{
 		fprintf(stderr, "request: failed to create command line.\n");
 		exit(EXIT_FAILURE);
 	}
 	// Append headers as appropriate
 	// Headers common to all requests go here
-	// int append_header(char ** header, char * name, char * content)
-	
+	append_header(requestbuf, "Date", "2018-04-07T14:31:32Z");
+
 	// Call individual request constructors
+	if(0 != mode_funs[mode](requestbuf, filepath))
+	{
+		fprintf(stderr, "request: error in processing %s request.\n", mode_strs[mode]);
+		return EXIT_FAILURE;
+	}
+	// Request has been constructed successfully
 	return EXIT_SUCCESS;	
 }
-static int weasel(char ** request, const char * filepath)
+
+/* Appends weasel-specific headers to request in *requestbuf */
+static int weasel(char ** requestbuf, const char * filepath)
 {
-	if(NULL == (*request = (char *) malloc(strlen("WEASEL ") + strlen(filepath) + 2)))
-	{
-		fprintf(stderr, "weasel: failed to allocate memory.\n");
-		exit(EXIT_FAILURE);
-	}
-	if(sprintf(*request, "%s%s\n", "WEASEL ", filepath) < 1)
-		fprintf(stderr, "weasel: failed to add command.\n");
-	printf("weasel:%s\n", *request);	
 	// How many headers?
-	
+	// None?
+	finish_headers(&requestbuf);
 	return 0;
 }
+static int gift(char ** requestbuf, const char * filepath)
+{ return EXIT_FAILURE; }
+static int list(char ** requestbuf, const char * filepath)
+{ return EXIT_FAILURE; }
 
 static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port)
 {
-    char optc; // Option character
-    int opti = 0; // Index into option array
-    char * filepath = NULL;
+	char optc; // Option character
+	int opti = 0; // Index into option array
+	char * filepath = NULL;
 
-    while(true)
-    {
-        static struct option options[] =
-        {
-            {"verbose",	no_argument, 		0,	'v'},
-            {"quiet",	no_argument, 		0,	'q'},
-            {"gift",	required_argument,	0,	'g'},
-            {"weasel",	required_argument,	0,	'w'},
-            {"list",	required_argument,	0,	'l'},
-            {"help",	no_argument,		0,	'h'},
-            {"ip",		required_argument,	0,	'i'},
-            {"port",	required_argument,	0,	'p'}
-        };
-        optc = getopt_long(argc, argv, OPTSTRING, options, &opti);
-        if (-1 == optc) // End of options
-        {
-            if(1 == argc)
-                optc = 'h';
-            else
-                break;
-        }
-        switch(optc)
-        {
-            case 0: // Flag has been set
-                break;
-            case 'v':
-                *verbose = true;
-                break;
-            case 'q':
-                *verbose = false;
-                break;
-            case 'g':
-                if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
-                {
-                    fprintf(stderr,
-                            "client: memory not available for filepath %s\n",
-                            (char *) optarg);
-                    exit(EXIT_FAILURE);
-                }
-                strcpy(filepath, optarg);
-                *mode = GIFT;
-                break;
-            case 'w':
-                if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
-                {
-                    fprintf(stderr,
-                            "client: memory not available for filepath %s\n",
-                            (char *) optarg);
-                    exit(EXIT_FAILURE);
-                }
-                strcpy(filepath, optarg);
-                *mode = WEASEL;
-                break;
-            case 'l':
-                if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
-                {
-                    fprintf(stderr,
-                            "client: memory not available for filepath %s\n",
-                            (char *) optarg);
-                    exit(EXIT_FAILURE);
-                }
-                strcpy(filepath, optarg);
-                *mode = LIST;
-                break;
-            case 'i':
-                strcpy(ip, optarg);
-                break;
-            case 'p':
+	while(true)
+	{
+		static struct option options[] =
+		{
+			{"verbose",	no_argument, 		0,	'v'},
+			{"quiet",	no_argument, 		0,	'q'},
+			{"gift",	required_argument,	0,	'g'},
+			{"weasel",	required_argument,	0,	'w'},
+			{"list",	required_argument,	0,	'l'},
+			{"help",	no_argument,		0,	'h'},
+			{"ip",		required_argument,	0,	'i'},
+			{"port",	required_argument,	0,	'p'}
+		};
+		optc = getopt_long(argc, argv, OPTSTRING, options, &opti);
+		if (-1 == optc) // End of options
+		{
+			if(1 == argc)
+				optc = 'h';
+			else
+				break;
+		}
+		switch(optc)
+		{
+			case 0: // Flag has been set
+				break;
+			case 'v':
+				*verbose = true;
+				break;
+			case 'q':
+				*verbose = false;
+				break;
+			case 'g':
+				if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
+				{
+					fprintf(stderr,
+							"client: memory not available for filepath %s\n",
+							(char *) optarg);
+					exit(EXIT_FAILURE);
+				}
+				strcpy(filepath, optarg);
+				*mode = GIFT;
+				break;
+			case 'w':
+				if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
+				{
+					fprintf(stderr,
+							"client: memory not available for filepath %s\n",
+							(char *) optarg);
+					exit(EXIT_FAILURE);
+				}
+				strcpy(filepath, optarg);
+				*mode = WEASEL;
+				break;
+			case 'l':
+				if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
+				{
+					fprintf(stderr,
+							"client: memory not available for filepath %s\n",
+							(char *) optarg);
+					exit(EXIT_FAILURE);
+				}
+				strcpy(filepath, optarg);
+				*mode = LIST;
+				break;
+			case 'i':
+				strcpy(ip, optarg);
+				break;
+			case 'p':
 				if(sscanf(optarg, "%hu", &port) <= 0)
 				{
 					fprintf(stderr,
@@ -214,27 +187,23 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 							optarg, gai_strerror(errno));
 					exit(EXIT_FAILURE);
 				}
-                break;
-            case 'h':
-            case '?': // Unrecognised option, error message printed by getopt_long
-            default:
-                printf(
-                       "Usage: %s [-v|-q|-g <filepath>|-w <filepath>|-l <filepath>|-h] -i <ip address> -p <port>\n",
-                       argv[0]);
-                printf("-v\t--verbose\tRun the program in verbose mode.\n");
-                printf("-q\t--quiet\tRun the program in quiet mode. Default.\n\n");
-                printf("-g\t--gift\tGIFT server with file <filepath>.\n");
-                printf("-w\t--weasel\tWeasel(get) file <filepath> from server.\n");
-                printf("-l\t--list\tList files from <filepath> and below.\n");
-                printf("-h\t--help\tDisplay this help.\n");
-                printf("-i\t--ip\tIPv4 of host to connect to.\n");
-                printf("-p\t--port\tPort on host to connect to.\n");
-                exit(EXIT_FAILURE);
-        }
-    }
-    return filepath;
+				break;
+			case 'h':
+			case '?': // Unrecognised option, error message printed by getopt_long
+			default:
+				printf(
+						"Usage: %s [-v|-q|-g <filepath>|-w <filepath>|-l <filepath>|-h] -i <ip address> -p <port>\n",
+						argv[0]);
+				printf("-v\t--verbose\tRun the program in verbose mode.\n");
+				printf("-q\t--quiet\tRun the program in quiet mode. Default.\n\n");
+				printf("-g\t--gift\tGIFT server with file <filepath>.\n");
+				printf("-w\t--weasel\tWeasel(get) file <filepath> from server.\n");
+				printf("-l\t--list\tList files from <filepath> and below.\n");
+				printf("-h\t--help\tDisplay this help.\n");
+				printf("-i\t--ip\tIPv4 of host to connect to.\n");
+				printf("-p\t--port\tPort on host to connect to.\n");
+				exit(EXIT_FAILURE);
+		}
+	}
+	return filepath;
 }
-static int gift(char ** request, const char * filepath)
-{ return EXIT_FAILURE; }
-static int list(char ** request, const char * filepath)
-{ return EXIT_FAILURE; }
