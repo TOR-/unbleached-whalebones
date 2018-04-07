@@ -30,10 +30,12 @@ static char* gift_data(FILE* input_file, bool verbose, char* gift_request);
 static int   gift_send(char *gift_request, bool verbose);
 static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
 
+
 int main(int argc, char ** argv)
 {
     char * filepath, ip[IPV4LEN];
     uint16_t port = 0;
+
     enum Mode mode = NONE;
 
     // Set flag default values
@@ -46,6 +48,7 @@ int main(int argc, char ** argv)
         fprintf(stderr, "No file specified.\n");
         return EXIT_FAILURE;
     }
+
 
     if(verbose) printf("client: verbose mode enabled\n");
     if(verbose) printf("Running in mode %d\n", mode);
@@ -71,6 +74,7 @@ static int weasel(char * filepath, FILE * file)
 {
 
 }
+
 
 
 static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t port)
