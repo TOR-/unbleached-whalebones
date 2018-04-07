@@ -1,14 +1,22 @@
 CC:=gcc
-CFLAGS:= -o
-LIBS:=-lm
+LIBS:=
+CFLAGS:= -Wall -Wextra $(LIBS)
+DEPS:= CS_TCP.h application.h
+OBJS:= CS_TCP.o application.o
 
 all: server client
 
-server:	refserver.c CS_TCP.c
-	$(CC) $(CFLAGS) server refserver.c CS_TCP.c 
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
-client: refclient.c CS_TCP.c
-	$(CC) $(CFLAGS) client refclient.c CS_TCP.c 
+server:	server.o $(OBJS)
+	$(CC) -o $@ $^ $(CFLAGS)
+
+client: client.o $(OBJS)
+	$(CC) -o $@ $^ $(CFLAGS)
 
 clean:
-	rm server client
+	rm server server.o
+	rm client client.o
+	rm $(OBJS)
+
