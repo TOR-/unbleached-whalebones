@@ -1,5 +1,5 @@
-#ifndef CS_TCP_H_INCLUDED
-#define CS_TCP_H_INCLUDED
+#ifndef CS_TCP_H
+#define CS_TCP_H
 
 #define SOCKET int
 #define INVALID_SOCKET -1
@@ -47,4 +47,4 @@ int getIPaddress(char * hostName, struct in_addr * IPaddr, char * IPaddrStr);
 /* Function to print error messages when something goes wrong...  */
 void printError(void);
 
-#endif // CS_TCP_H_INCLUDED
+#endif // CS_TCP_H
