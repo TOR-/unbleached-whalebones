@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "CS_TCP.h"
+#include "application.h"
+
 /* Appends a header to a <LF> separated list of headers
  * appends <name>:<content>\n
  * returns status code */
@@ -48,4 +51,79 @@ int finish_headers(char ** headers)
 	}
 	*headers = newheaders;
 	return EXIT_SUCCESS;
+}
+
+
+//Function to check the parameters of a file
+//Returns NULL if file does not exist, or if there is an error in reading the file
+FILE *file_parameters(const char *filepath,long int *size_of_file)
+{
+    FILE* input_file;
+
+    if( ( input_file = fopen(filepath, READ_ONLY) )== NULL )
+    {
+        if(verbose)
+            printf("File does not exist\n");
+        return input_file;
+    }
+    else
+    {
+        if(verbose)
+            printf("Checking file parameters");
+        fseek(input_file, 0L, SEEK_END);
+        *size_of_file = ftell(input_file);
+        if(verbose)
+            printf("File is %ld bytes long", *size_of_file);
+        if(size_of_file < 0)
+        {
+            perror("Error in file_parameters: File size is less than zero: ");
+            return NULL;
+        }
+
+        rewind(input_file);
+    }
+
+    return input_file;
+}
+
+//Appends data to the request
+//Returns -1 on failure
+int append_data(FILE* input_file, char** request_buf, long int size_of_file)
+{
+    int check_for_end = 0;
+    size_t line_length = 0;
+
+    long int header_length = strlen(*request_buf);
+
+    char* data = (char *) malloc(size_of_file);
+    if(data == NULL)
+    {
+        perror("Error appending data: ");
+        return EXIT_FAILURE;
+    }
+    //Reallocate memory to account for the headers
+    *request_buf = (char *) realloc(*request_buf, size_of_file + header_length);
+    if(request_buf == NULL)
+    {
+        perror("Error appending data: ");
+        return EXIT_FAILURE;
+    }
+
+    //Read in data from the file
+    check_for_end = getline(&data, &line_length,input_file);
+    while( check_for_end != -1 )
+    {
+        check_for_end = getline(&data, &line_length,input_file);
+    }
+    if(data == NULL)
+    {
+        printf("Error in reading the file");
+        return EXIT_FAILURE;
+    }
+
+    //Append the data to the request string
+    strcat(*request_buf,data);
+    free(data);
+
+    return EXIT_SUCCESS;
 }
