@@ -46,7 +46,7 @@ int main()
 
 // ============== CONNECT TO SERVER =============================================
 
-    clientSocket = TCPcreateSocket();  // initialise and create a socket
+    clientSocket = TCPSocket(AF_INET);  // initialise and create a socket
     if (clientSocket == INVALID_SOCKET)  // check for error
         return EXIT_FAILURE;       // no point in continuing
 
