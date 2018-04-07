@@ -16,7 +16,7 @@ client: client.o $(OBJS)
 	$(CC) -o $@ $^ $(CFLAGS)
 
 clean:
-	rm server server.o
-	rm client client.o
-	rm $(OBJS)
+	- rm server server.o
+	- rm client client.o
+	- rm $(OBJS)
 
