@@ -32,7 +32,7 @@ static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbo
 
 int main(int argc, char ** argv)
 {
-    char * filepath, ip[IPV4LEN];
+	char * filepath, ip[IPV4LEN];
     uint16_t port = 0;
     enum Mode mode = NONE;
 
@@ -103,6 +103,7 @@ static int weasel(char ** requestbuf, const char * filepath)
     finish_headers(requestbuf);
     return 0;
 }
+
 static int gift(char ** requestbuf, const char * filepath)
 {
     FILE *input_file;
@@ -127,7 +128,7 @@ static int gift(char ** requestbuf, const char * filepath)
         return EXIT_FAILURE;
     }
 
-    //Sedning the data to the server
+    //Sending the data to the server
     error_check = SEND(requestbuf, verbose);
     if(error_check == -1)
     {
@@ -139,10 +140,11 @@ static int gift(char ** requestbuf, const char * filepath)
     return EXIT_SUCCESS;
 }
 
+static char* gift_data(FILE* input_file, bool verbose, char* gift_request){return (char*) NULL;}
+static int   gift_send(char *gift_request, bool verbose){return -1;}
 
 static int list(char ** requestbuf, const char * filepath)
 { return EXIT_FAILURE; }
-
 
 
 static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t port)
