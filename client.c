@@ -260,6 +260,8 @@ int gift_client(char *filepath, bool verbose)
     return EXIT_SUCCESS;
 }
 
+static char* gift_data(FILE* input_file, bool verbose, char* gift_request){return (char*) NULL;}
+static int   gift_send(char *gift_request, bool verbose){return -1;}
 
 char *gift_header(char *filepath, long int size_of_file, bool verbose)
 {
