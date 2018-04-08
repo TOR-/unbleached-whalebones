@@ -4,11 +4,11 @@ LIBS:=-lm
 
 all: server client
 
-server:	refserver.c CS_TCP.c
-	$(CC) $(CFLAGS) server refserver.c CS_TCP.c 
+server:	server.c CS_TCP.c
+	$(CC) $(CFLAGS) server server.c CS_TCP.c 
 
-client: refclient.c CS_TCP.c
-	$(CC) $(CFLAGS) client refclient.c CS_TCP.c 
+client: client.c CS_TCP.c
+	$(CC) $(CFLAGS) client client.c CS_TCP.c 
 
 clean:
 	rm server client
