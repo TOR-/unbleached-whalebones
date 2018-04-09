@@ -58,7 +58,7 @@ int main()
 
 // ============== SERVER SETUP ===========================================
 
-    listenSocket = TCPcreateSocket();  // initialise and create a socket
+    listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
     if (listenSocket == INVALID_SOCKET)  // check for error
         return 1;       // no point in continuing
 
@@ -89,8 +89,12 @@ int main()
 
         if( numRx < 0)  // check for error
         {
+<<<<<<< HEAD
             printf("Problem receiving, maybe connection closed by client?\n");
             printError(Server: ERR handling req. No bytes received.);   // give details of the error
+=======
+            printf("Problem receiving, maybe connection closed by client?\n%s\n", gai_strerror(errno));
+>>>>>>> 2d239d734df98bcccb928fd02e18b78c64bc6d0e
             stop = 1;   // set the flag to end the loop
         }
         else if (numRx == 0)  // indicates connection closing (but not an error)
@@ -134,8 +138,7 @@ int main()
 
         if( retVal == -1)  // check for error
         {
-            printf("*** Error sending response\n");
-            printError();
+            printf("*** Error sending response\n%s\n", gai_strerror(errno));
         }
         else printf("Sent welcome message of %d bytes\n", retVal);
 
@@ -149,8 +152,7 @@ int main()
         retVal = send(connectSocket, response, numResp, 0);  // send bytes
         if( retVal == -1)  // check for error
         {
-            printf("*** Error sending response\n");
-            printError();
+            printf("*** Error sending response\n%s\n", gai_strerror(errno));
         }
         else printf("Sent response of %d bytes\n", retVal);
 
@@ -158,8 +160,7 @@ int main()
         retVal = send(connectSocket, goodbye, strlen(goodbye), 0);  // send bytes
         if( retVal == -1)  // check for error
         {
-            printf("*** Error sending response\n");
-            printError();
+            printf("*** Error sending response\n%s\n", gai_strerror(errno));
         }
         else printf("Sent closing message of %d bytes\n", retVal);
 
