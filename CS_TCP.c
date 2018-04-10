@@ -35,7 +35,7 @@ SOCKET TCPSocket (int address_family)
     if (mySocket == INVALID_SOCKET)  // check for error
     {
         printf("*** Failed to create socket\n");
-        printf("TCPcreateSocket: %s\n", gai_strerror(retVal));
+        printf("TCPcreateSocket: %s\n", strerror(retVal));
         return INVALID_SOCKET;  // socket is invalid if error
     }
     else
@@ -71,7 +71,7 @@ int TCPserverSetup (SOCKET lSocket, int port)
     retVal = bind(lSocket, (const struct sockaddr *) &service, sizeof(service));
     if( retVal == -1)  // check for error
     {
-        fprintf(stderr,"TCPserverSetup: %s\n", gai_strerror(errno));
+        fprintf(stderr,"TCPserverSetup: %s\n", strerror(errno));
         return EXIT_FAILURE;          // indicate failure
     }
     else printf("Socket bound to port %d, server is ready\n", port);
@@ -102,7 +102,7 @@ SOCKET TCPserverConnect (SOCKET lSocket)
     retVal = listen(lSocket, 2);
     if( retVal == -1)  // check for error
     {
-        printf("TCPserverConnect: %s\n", gai_strerror(errno));
+        printf("TCPserverConnect: %s\n", strerror(errno));
         return EXIT_FAILURE;  // indicate failure
     }
     else printf("\nListening for connection requests...\n");
@@ -111,7 +111,7 @@ SOCKET TCPserverConnect (SOCKET lSocket)
     cSocket = accept(lSocket, (struct sockaddr *) &client, &len );
     if( cSocket == INVALID_SOCKET)  // check for error
     {
-        printf("TCPserverConnect: %s\n", gai_strerror(errno));
+        printf("TCPserverConnect: %s\n", strerror(errno));
         return EXIT_FAILURE;  // indicate failure
     }
     else  // we have a connection, print details of the client
@@ -161,7 +161,7 @@ int TCPclientConnect (
     retVal = connect(cSocket, (const struct sockaddr *) &service, sizeof(service));
     if( retVal != 0)  // check for error
     {
-        printf("TCPclientConnect: %s\n", gai_strerror(errno));
+        printf("TCPclientConnect: %s\n", strerror(errno));
         return EXIT_FAILURE;  // indicate failure
     }
     else
@@ -184,7 +184,7 @@ int TCPcloseSocket (SOCKET socket2close)
     if (retVal == 0) printf("Socket shutting down...\n");  // success
     else  // some problem occurred
     {
-        printf("TCPserverConnect: %s\n", gai_strerror(errno));
+        printf("TCPserverConnect: %s\n", strerror(errno));
         return EXIT_FAILURE;  // indicate failure
     }
 
@@ -192,7 +192,7 @@ int TCPcloseSocket (SOCKET socket2close)
     retVal = close(socket2close);  // close the socket
     if( retVal != 0)  // check for error
     {
-        printf("TCPserverConnect: %s\n", gai_strerror(errno));
+        printf("TCPserverConnect: %s\n", strerror(errno));
         return EXIT_FAILURE;  // indicate failure
     }
     else

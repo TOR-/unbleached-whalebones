@@ -109,7 +109,7 @@ int main()
 
         if( numRx == -1)  // check for error
         {
-			fprintf(stderr, "client: %s\n", gai_strerror(errno));
+			fprintf(stderr, "client: %s\n", strerror(errno));
             stop = 1;  // set flag to exit the loop
         }
         else if (numRx == 0)  // connection closed
