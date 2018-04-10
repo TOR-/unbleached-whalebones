@@ -110,18 +110,13 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 	}
 	
 	//Read in data from the file, appending to request line by line
-	check_for_end = getline(&data, &line_length,input_file);
-	strcat(*request_buf,data);
-	while( check_for_end != -1 )
-	{
-		check_for_end = getline(&data, &line_length,input_file);
-		strcat(*request_buf,data);
-	}
+	check_for_end = fread(data,1,size_of_file,input_file);
 	if(data == NULL)
 	{
 		printf("Error in reading the file");
 		return EXIT_FAILURE;
 	}
+	strcat(*request_buf,data);
 	
 	free(data);
 	
