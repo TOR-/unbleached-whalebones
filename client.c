@@ -140,8 +140,6 @@ static int gift(char ** requestbuf, const char * filepath)
     return EXIT_SUCCESS;
 }
 
-static char* gift_data(FILE* input_file, bool verbose, char* gift_request){return (char*) NULL;}
-static int   gift_send(char *gift_request, bool verbose){return -1;}
 
 static int list(char ** requestbuf, const char * filepath)
 { return EXIT_FAILURE; }
