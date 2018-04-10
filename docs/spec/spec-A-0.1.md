@@ -51,7 +51,10 @@ the server in the Server-timeout header sent with the previous response.
 ### COMMAND:
 
 ```GIFT<SPC><filepath>```  
-Gift the server with a file located at ```<filepath>```. (PUT)  
+Gift the server with a file located at ```<filepath>```. (PUT)
+- Requires the ```Data-length``` header  
+- Requires the ```If-exists``` header  
+  
 ```WEASEL<SPC><filepath>```  
 Weasel a file located at ```<filepath>``` from the server. (GET)  
 ```LIST<SPC><filepath>```  
@@ -97,7 +100,9 @@ Filetype of data portion of message
 Preferably this would be a MIME type  
 ```Timeout: <max waiting time>```  
 Length of time server/client will wait for next response before closing connection  
-#There might be something more useful for this to be on client side  
+```If-exists: <action>```  
+Action for server to take if the file exists  
+Either ```overwrite``` or ```skip```  
 
 # Proposed DRAFT A v0.2
 ## New headers:
