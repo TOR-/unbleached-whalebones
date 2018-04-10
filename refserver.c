@@ -19,21 +19,15 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <stdbool.h>
 
 #include "CS_TCP.h"
+#include "CS_TCP.c"
 
 #define SERVER_PORT 6666  // port to be used by the server
 #define MAXREQUEST 52      // size of request array, in bytes
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
-
-typedef enum Bool {FALSE, TRUE};
-/*void error(const char *msg){
-
-    perror(msg);
-    exit(1);
-
-}*/
 
 int main()
 {
@@ -78,7 +72,7 @@ int main()
 // ============== RECEIVE REQUEST ======================================
 
     // Loop to receive data from the client, until the end marker is found
-    while (FALSE == stop)   // loop is controlled by the stop flag
+    while (0 == stop)   // loop is controlled by the stop flag
     {
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
@@ -89,12 +83,7 @@ int main()
 
         if( numRx < 0)  // check for error
         {
-<<<<<<< HEAD
-            printf("Problem receiving, maybe connection closed by client?\n");
-            printError(Server: ERR handling req. No bytes received.);   // give details of the error
-=======
-            printf("Problem receiving, maybe connection closed by client?\n%s\n", gai_strerror(errno));
->>>>>>> 2d239d734df98bcccb928fd02e18b78c64bc6d0e
+            printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
             stop = 1;   // set the flag to end the loop
         }
         else if (numRx == 0)  // indicates connection closing (but not an error)
@@ -104,10 +93,10 @@ int main()
         }
         else // numRx > 0 => we got some data from the client
         {
-            printf("Server: REQ received\n", );
+            printf("Server: REQ received\n");
             request[numRx] = 0;  // add 0 byte to make request into a string
             // Print details of the request
-            printf("\nRequest received, %d bytes: '%s'\n", numRx, request);
+            printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
 
             /*Search request and see how server should respond.*/
 
