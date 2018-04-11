@@ -68,11 +68,7 @@ int main()
 // ============== RECEIVE REQUEST ======================================
 
     // Loop to receive data from the client, until the end marker is found
-<<<<<<< HEAD:refserver.c
-    while (0 == stop)   // loop is controlled by the stop flag
-=======
     while (!stop)   // loop is controlled by the stop flag
->>>>>>> status:server.c
     {
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
