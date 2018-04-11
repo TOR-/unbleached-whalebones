@@ -46,10 +46,6 @@ int main()
     char welcome[] = "Welcome to the Communication Systems server.";
     char goodbye[] = "Goodbye, and thank you for using the server. ###";
 
-    // Print starting message
-    printf("\nCommunication Systems server program\n\n");
-
-
 // ============== SERVER SETUP ===========================================
 
     listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
@@ -72,7 +68,11 @@ int main()
 // ============== RECEIVE REQUEST ======================================
 
     // Loop to receive data from the client, until the end marker is found
+<<<<<<< HEAD:refserver.c
     while (0 == stop)   // loop is controlled by the stop flag
+=======
+    while (!stop)   // loop is controlled by the stop flag
+>>>>>>> status:server.c
     {
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
