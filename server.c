@@ -45,7 +45,7 @@ typedef struct req{
     Header *header;
 } Request;
 
-int parse_request(Request reqRx, Header headerRx, char *request);
+int parse_request(Request *reqRx, Header *headerRx, char *request);
 
 int main()
 {
@@ -208,7 +208,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     while(request[index++] != ' ')
         char_count++;
     
-    reqRx->command = (char *)malloc(char_count*sizeof(char))
+    reqRx->command = (char *)malloc(char_count*sizeof(char));
     
     for(i=0; i<char_count; i++)
         (reqRx->command)[i] = request[i];
@@ -219,7 +219,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     while(request[index++] != '\n')
         char_count++;
     
-    reqRx->filename = (char *)malloc(char_count*sizeof(char))
+    reqRx->filename = (char *)malloc(char_count*sizeof(char));
 
     for(i=0; i<char_count; i++)
         (reqRx->filename)[i] = request[i];
@@ -245,7 +245,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
             while(request[index++] != '\n')
                 char_count++;
             
-            headerRx->length = (char *)malloc(char_count*sizeof(char))
+            headerRx->length = (char *)malloc(char_count*sizeof(char));
             
             for(i=0; i<char_count; i++)
                 (headerRx->length)[i] = request[(index-char_count)+i];
