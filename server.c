@@ -28,6 +28,7 @@
 #define MAXREQUEST 64      // size of request array, in bytes
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
+#define NULLBYTE '\0'
 
 typedef struct head{ // Should members be character types?? Change before/after?
     char *length;
@@ -208,21 +209,23 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     while(request[index++] != ' ')
         char_count++;
     
+    //Store command as string
     reqRx->command = (char *)malloc(char_count*sizeof(char));
     
     for(i=0; i<char_count; i++)
         (reqRx->command)[i] = request[i];
-
-    char_count = 0; // reset to be used for next retrieval
-    
-    //retrieve request 'filename'==========================================
-    while(request[index++] != '\n')
-        char_count++;
-    
+   //Append null byte
+    (reqRx->command)[char_count] = NULLBYTE;
+        
+    for(char_count = 0; request[index++] != '\n'; char_count++);
+    //Allocate memory for filename
     reqRx->filename = (char *)malloc(char_count*sizeof(char));
-
+    
+    //Store filename as string
     for(i=0; i<char_count; i++)
         (reqRx->filename)[i] = request[i];
+    //Append null byte
+    (reqRx->filename)[char_count] = NULLBYTE;
     
     char_count = 0; // reset to be used for next retrieval
     
