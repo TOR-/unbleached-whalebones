@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <stdbool.h>
 
 #include "CS_TCP.h"
 #include "CS_TCP.c"
@@ -67,7 +68,11 @@ int main()
 // ============== RECEIVE REQUEST ======================================
 
     // Loop to receive data from the client, until the end marker is found
+<<<<<<< HEAD:server.c
     while (!stop)   // loop is controlled by the stop flag
+=======
+    while (0 == stop)   // loop is controlled by the stop flag
+>>>>>>> server:refserver.c
     {
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
@@ -78,7 +83,7 @@ int main()
 
         if( numRx < 0)  // check for error
         {
-            printf("Problem receiving, maybe connection closed by client?\n%s\n", gai_strerror(errno));
+            printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
             stop = 1;   // set the flag to end the loop
         }
         else if (numRx == 0)  // indicates connection closing (but not an error)
@@ -88,9 +93,12 @@ int main()
         }
         else // numRx > 0 => we got some data from the client
         {
+            printf("Server: REQ received\n");
             request[numRx] = 0;  // add 0 byte to make request into a string
             // Print details of the request
-            printf("\nRequest received, %d bytes: '%s'\n", numRx, request);
+            printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
+
+            /*Search request and see how server should respond.*/
 
             // Check to see if the request contains the end marker
             loc = memchr(request, ENDMARK, numRx);  // search the array
