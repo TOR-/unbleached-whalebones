@@ -25,9 +25,27 @@
 #include "CS_TCP.c"
 
 #define SERVER_PORT 6666  // port to be used by the server
-#define MAXREQUEST 52      // size of request array, in bytes
+#define MAXREQUEST 64      // size of request array, in bytes
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
+
+typedef struct head{ // Should members be character types?? Change before/after?
+    char *length;
+    char *type;
+    char *timeout;
+    char *date;
+    char *ifexist;
+    //char *last_mod;
+    //char *enc;
+} Header;
+
+typedef struct req{
+    char *command;
+    char *filename;
+    Header *header;
+} Request;
+
+int parse_request(Request reqRx, Header headerRx, char *request);
 
 int main()
 {
@@ -66,7 +84,11 @@ int main()
 
 
 // ============== RECEIVE REQUEST ======================================
-
+    
+    Request reqRx; // 'request received', change if you want?
+    Header headerRx;
+    reqRx.header = &headerRx; //req member now points to header structure
+    
     // Loop to receive data from the client, until the end marker is found
     while (!stop)   // loop is controlled by the stop flag
     {
@@ -93,7 +115,13 @@ int main()
             request[numRx] = 0;  // add 0 byte to make request into a string
             // Print details of the request
             printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
-
+            
+            //function to parse request[] and store values in structure
+            if( parse_request(&reqRx, &headerRx, request) != 0 )
+                fprintf(stderr, "Server: Unable to parse request received!");
+            
+            //function to process requests
+            //...
             /*Search request and see how server should respond.*/
 
             // Check to see if the request contains the end marker
@@ -167,3 +195,80 @@ int main()
     TCPcloseSocket(listenSocket);
     return 0;
 }
+
+
+int parse_request(Request *reqRx, Header *headerRx, char *request){
+
+    int index = 0; // current location within request[]
+    int char_count = 0; // counts length of current substring
+    int i = 0; //general loop counter
+    int end = 0; //flags end of header
+    
+    //retrieve request 'command'===========================================
+    while(request[index++] != ' ')
+        char_count++;
+    
+    reqRx->command = (char *)malloc(char_count*sizeof(char))
+    
+    for(i=0; i<char_count; i++)
+        (reqRx->command)[i] = request[i];
+
+    char_count = 0; // reset to be used for next retrieval
+    
+    //retrieve request 'filename'==========================================
+    while(request[index++] != '\n')
+        char_count++;
+    
+    reqRx->filename = (char *)malloc(char_count*sizeof(char))
+
+    for(i=0; i<char_count; i++)
+        (reqRx->filename)[i] = request[i];
+    
+    char_count = 0; // reset to be used for next retrieval
+    
+    /* could have array to store all member names so this section could be put
+    into a larger loop, may be too complicated but it'd be slick */
+    
+    //retrieve header components===========================================
+    char current_string[20]; // stores <header name>
+    
+    while(!end){
+        
+        for(i=0; request[index] != ':'; i++)
+            current_string[i] = request[index++];
+            
+        current_string[++i] = '\0';
+        //can't use switch statement for strings :( any other way?
+        
+        if(strcmp(current_string, "Data-length")){
+            
+            while(request[index++] != '\n')
+                char_count++;
+            
+            headerRx->length = (char *)malloc(char_count*sizeof(char))
+            
+            for(i=0; i<char_count; i++)
+                (headerRx->length)[i] = request[(index-char_count)+i];
+            
+            char_count = 0; // reset to be used for next retrieval
+        }
+        //copy for other <header names>
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        
+
+        if(request[index] == '\n')
+            end = 1;
+    }
+        
+    return 0;
+}
+
+
+
