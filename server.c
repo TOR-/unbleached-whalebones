@@ -229,12 +229,8 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         (reqRx->filename)[i] = request[i];
     //Append null byte
     (reqRx->filename)[char_count] = NULLBYTE;
-    
-    //Unnecessary. Will be reset upon next function call.
+
     char_count = 0; // reset to be used for next retrieval
-    
-    /* could have array to store all member names so this section could be put
-    into a larger loop, may be too complicated but it'd be slick */
     
     //retrieve header components===========================================
     char current_string[20]; // stores <header name>
