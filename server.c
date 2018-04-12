@@ -31,7 +31,6 @@
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 #define NULLBYTE '\0'
-#define DEBUG 1
 
 typedef struct head{ // Should members be character types?? Change before/after?
     int  data_length;
@@ -220,7 +219,9 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
    //Append null byte
     read_string[char_count] = NULLBYTE;
 
-    if(DEBUG) printf("cmdRx: %s \n", read_string);
+    #ifdef DEBUG
+     printf("cmdRx: %s \n", read_string);
+    #endif
 
     //Assigns mode of operation to reqRx Mode enum.
     //Need to check for invalid mode.
@@ -228,7 +229,9 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         if(!strcmp(read_string, mode_strs[i]))
             (reqRx->cmdRx) = i;
     
-    if(DEBUG) printf("Command is mode %u\n", (reqRx->cmdRx));
+    #ifdef DEBUG
+     printf("Operating in mode %u\n", (reqRx->cmdRx));
+    #endif
 
     //Count number of bytes in filepath    
     for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
@@ -243,30 +246,35 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //Append null byte
     (reqRx->filepath)[char_count] = NULLBYTE;
 
-    if(DEBUG) printf("Filepath is %s\n", (reqRx->filepath));
+    //Index is now at new the line/beginning of header.
+    index += i + 1;
 
-    char_count = 0; // reset to be used for next retrieval
+    #ifdef DEBUG
+     printf("Filepath is %s\n", (reqRx->filepath));
+    #endif
     
-    //retrieve header components===========================================
-    char current_string[20]; // stores <header name>
-    /*
-    while(!end){
+    char read_header[MAX_HEADER_SIZE];
+
+    for(i = index; request[i] != ':'; i++)
+    {
+        read_header[i] = request[i];
+        //Increment the index of the req string
+        //for each byte read in
+        index++;
+    }   
+            
+    current_string[++i] = '\0';
+    //can't use switch statement for strings :( any other way?
         
-        for(i=0; request[index] != ':'; i++)
-            current_string[i] = request[index++];
+    if(strcmp(current_string, "Data-length")){
             
-        current_string[++i] = '\0';
-        //can't use switch statement for strings :( any other way?
-        
-        if(strcmp(current_string, "Data-length")){
+        while(request[index++] != '\n')
+            char_count++;
             
-            while(request[index++] != '\n')
-                char_count++;
+        //headerRx->data_length = (int *)malloc(char_count*sizeof(char));
             
-            //headerRx->data_length = (int *)malloc(char_count*sizeof(char));
-            
-            for(i=0; i<char_count; i++)
-                (headerRx->data_length)[i] = request[(index-char_count)+i];
+        for(i=0; i<char_count; i++)
+            (headerRx->data_length)[i] = request[(index-char_count)+i];
             
             char_count = 0; // reset to be used for next retrieval
         }
@@ -283,7 +291,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         
         if(request[index] == '\n')
             end = 1;
-    }*/
+    
         
     return 0;
 }

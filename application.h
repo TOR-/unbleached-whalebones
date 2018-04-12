@@ -1,9 +1,11 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 #define READ_ONLY "r"
+#define DEBUG
 
 #define NUM_MODES 3
 #define NUM_HEADERS 3
+#define MAX_HEADER_SIZE 20
 
 bool verbose;
 
