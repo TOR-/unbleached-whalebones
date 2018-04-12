@@ -45,10 +45,6 @@ static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 #define STATUS_SEPARATOR " "
 #define STATUS_TERMINATOR "\n"
 
-static int   gift_client(char *filepath, bool verbose);
-static char* gift_header(char *filepath, long int file_size, bool verbose);
-static char* gift_data(FILE* input_file, bool verbose, char* gift_request);
-static int   gift_send(char *gift_request, bool verbose);
 static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
 static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
 char * extract_header(char * buf, Header * header);
