@@ -1,5 +1,6 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
+#define READ_ONLY "r"
 
 #define NUM_MODES 3
 #define NUM_HEADERS 3

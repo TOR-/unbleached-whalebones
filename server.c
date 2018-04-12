@@ -31,10 +31,10 @@
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 #define NULLBYTE '\0'
+#define DEBUG 1
 
 typedef struct head{ // Should members be character types?? Change before/after?
-    int  data_length = 0;
-    //Think of default value for timeout
+    int  data_length;
     int timeout ;
     //Change to enum
     char *ifexist;
@@ -42,7 +42,7 @@ typedef struct head{ // Should members be character types?? Change before/after?
 
 typedef struct req{
     Mode cmdRx;
-    char *filename;
+    char *filepath;
     Header *header;
 } Request;
 
@@ -86,7 +86,7 @@ int main()
 
 // ============== RECEIVE REQUEST ======================================
     
-    Request reqRx; // 'request received', change if you want?
+    Request reqRx;
     Header headerRx;
     reqRx.header = &headerRx; //req member now points to header structure
     
@@ -196,9 +196,9 @@ int main()
     TCPcloseSocket(listenSocket);
     return 0;
 }
+
 /*Takes a request, parses the data within and stores the data within
 in useful formats within a struct for processing*/
-
 int parse_request(Request *reqRx, Header *headerRx, char *request){
 
     int index = 0; // current location within request[]
@@ -209,41 +209,47 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //retrieve request 'command'===========================================
     while(request[index++] != ' ')
         char_count++;
-    //Index is now at value after " "
-    
+    //Index is now at beginning of filepath
+
     //Allocate memory for command and leave space for NULLBYTE
     read_string = (char *)malloc((char_count + 1)*sizeof(char));
     
-    //Store command as string
+    //Store command as temporary string
     for(i=0; i<char_count; i++)
         read_string[i] = request[i];
    //Append null byte
     read_string[char_count] = NULLBYTE;
 
+    if(DEBUG) printf("cmdRx: %s \n", read_string);
+
     //Assigns mode of operation to reqRx Mode enum.
     //Need to check for invalid mode.
     for(i = 0; i < NUM_MODES; i++)
         if(!strcmp(read_string, mode_strs[i]))
-            (reqRx->Mode) = i;
+            (reqRx->cmdRx) = i;
     
+    if(DEBUG) printf("Command is mode %u\n", (reqRx->cmdRx));
+
     //Count number of bytes in filepath    
-    for(char_count = 0; request[index++] != '\n'; char_count++);
-    //Allocate memory for filename
-    reqRx->filename = (char *)malloc((char_count + 1)*sizeof(char));
+    for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
+    //Allocate memory for filepath
+    reqRx->filepath = (char *)malloc((char_count + 1)*sizeof(char));
     
     //Index is now at beginning of header
 
-    //Store filename as string
+    //Store filepath as string
     for(i = 0; i < char_count; i++)
-        (reqRx->filename)[i] = request[i];
+        (reqRx->filepath)[i] = request[i + index];
     //Append null byte
-    (reqRx->filename)[char_count] = NULLBYTE;
+    (reqRx->filepath)[char_count] = NULLBYTE;
+
+    if(DEBUG) printf("Filepath is %s\n", (reqRx->filepath));
 
     char_count = 0; // reset to be used for next retrieval
     
     //retrieve header components===========================================
     char current_string[20]; // stores <header name>
-    
+    /*
     while(!end){
         
         for(i=0; request[index] != ':'; i++)
@@ -257,10 +263,10 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
             while(request[index++] != '\n')
                 char_count++;
             
-            headerRx->length = (char *)malloc(char_count*sizeof(char));
+            //headerRx->data_length = (int *)malloc(char_count*sizeof(char));
             
             for(i=0; i<char_count; i++)
-                (headerRx->length)[i] = request[(index-char_count)+i];
+                (headerRx->data_length)[i] = request[(index-char_count)+i];
             
             char_count = 0; // reset to be used for next retrieval
         }
@@ -274,10 +280,10 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         //
         //
         
-
+        
         if(request[index] == '\n')
             end = 1;
-    }
+    }*/
         
     return 0;
 }
