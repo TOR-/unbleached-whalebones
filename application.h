@@ -9,6 +9,7 @@
 
 bool verbose;
 
+typedef enum h_name { DATA_L, TIMEOUT, IF_EXISTS} H_name;
 typedef enum mode {GIFT, WEASEL, LIST} Mode;
 const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
 const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
