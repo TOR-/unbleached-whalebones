@@ -43,7 +43,7 @@ typedef struct head{ // Should members be character types?? Change before/after?
 } Header;
 
 typedef struct req{
-    enum command;
+    Mode cmdRx;
     char *filename;
     Header *header;
 } Request;

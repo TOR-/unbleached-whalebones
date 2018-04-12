@@ -6,12 +6,9 @@
 
 bool verbose;
 
-enum Mode {GIFT, WEASEL, LIST};
-char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
-char * header_name[] = {"Data-length", "Timout", "If-exists"};
-
-enum status_num {0, 2};
-const char *status_strings{"swag", "yolo"};
+typedef enum mode {GIFT, WEASEL, LIST} Mode;
+const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
+const char * header_name[] = {"Data-length", "Timout", "If-exists"};
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
