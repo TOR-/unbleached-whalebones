@@ -14,9 +14,20 @@
 #include "CS_TCP.h"
 #include "application.h"
 
-/* Mode-agnostic request construction */
-static int request(enum Mode mode, char ** requestbuf, const char * filepath);
+typedef struct Response_t{
+	char * header;
+	char * body;
+}response_t;
 
+typedef struct{
+	char * name;
+	char * value;
+}Header;
+
+/* Mode-agnostic request construction */
+static int request(enum Mode, char **, const char *);
+/* Response parser */
+static int response(enum Mode, char *, const char *);
 /* Mode-specific request construction */
 static int gift(char ** requestbuf, const char * filepath);
 static int weasel(char ** requestbuf, const char * filepath);
@@ -27,6 +38,12 @@ static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
 #define READ_ONLY "r"
+#define MAXRESPONSE 90
+
+#define HEADER_SEPARATOR ":"
+#define HEADER_TERMINATOR "\n"
+#define STATUS_SEPARATOR " "
+#define STATUS_TERMINATOR "\n"
 
 static int   gift_client(char *filepath, bool verbose);
 static char* gift_header(char *filepath, long int file_size, bool verbose);
@@ -34,6 +51,8 @@ static char* gift_data(FILE* input_file, bool verbose, char* gift_request);
 static int   gift_send(char *gift_request, bool verbose);
 static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
 static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
+char * extract_header(char * buf, Header * header);
+char * extract_status(char * buf, char ** description, int *status_code);
 
 int main(int argc, char ** argv)
 {
@@ -56,20 +75,126 @@ int main(int argc, char ** argv)
 	if(verbose) printf("client: verbose mode enabled\n");
 	if(verbose) printf("Running in mode %d\n", mode);
 
- 	SOCKET sockfd = TCPSocket(AF_INET);
+	SOCKET sockfd = TCPSocket(AF_INET);
 
-	// connect server
-	//if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
-	//	return EXIT_FAILURE;
 	// now connected
 	// mode switch: WEASEL, GIFT, LIST
 	char * requestbuf;
+	// Construct request
 	if(0 != request(mode, &requestbuf, filepath))
 		return EXIT_FAILURE;
-	printf("client: sending request:\n>>>\n%s\n<<<\n", requestbuf);
+	if(verbose)printf("client: sending request:\n>>>\n%s\n<<<\n", requestbuf);
+
+	// Connect to server
+	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
+		return EXIT_FAILURE;
+
+	int ret = 0;
+	// Send request
+	if(ret = send(sockfd, requestbuf, strlen(requestbuf), 0) < 1)
+	{
+		fprintf(stderr, "client: %s.\n", strerror(errno));
+		return EXIT_FAILURE;
+	}
+	free(requestbuf);
+
+	char * responsebuf = (char *)malloc(MAXRESPONSE);
+	if(NULL == responsebuf)
+	{
+		fprintf(stderr, "client: failed to allocate memory for response.\n%s",
+				strerror(errno));
+		return EXIT_FAILURE;
+	}
+	// Receive response
+	int n_buffers = 0;
+	do{
+		ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
+		printf("client:RECEIVED>>>%s<<<\n", responsebuf);
+		response(mode, responsebuf, filepath);
+		memset(responsebuf, 0, MAXRESPONSE);
+	} while (ret > 0);
+
+	free(filepath);
 	return EXIT_SUCCESS;
 }
+/* Populates fields in <header> with firse header found in <buf>
+ * Returns pointer to the end of the header or NULL if not found */
+char * extract_header(char * buf, Header * header)
+{
+	static bool headers_finished = false;
+	if(headers_finished) return buf;
+	char * sep = buf, * term = buf; // Position of substring in string
+	if(0 == strncmp(buf, HEADER_TERMINATOR, 1))
+	{
+		headers_finished = true;
+		return buf;
+	}
+	if(NULL == (sep = strstr(buf, HEADER_SEPARATOR))
+			|| NULL == (term = strstr(buf, HEADER_TERMINATOR)))
+	{
+		fprintf(stderr, "extract_header: header not found in %s.\n", buf);
+		return NULL;
+	}
+	if(NULL == (header->name = strndup(buf, sep - buf))
+			|| NULL == (header->value = strndup(sep + 1, term - sep + 1)))
+	{
+		fprintf(stderr, "extract_header: no memory for header %s.\n", buf);
+		return NULL;
+	}
+	if(verbose) printf("extract_header: header %s read, value %s.\n",
+			header->name, header->value);
+	return term;
+}
 
+char * extract_status(char * buf, char ** description, int *status_code)
+{
+	static bool status_found = false;
+	if(status_found) return buf;
+
+	char * sep = buf, * term = buf;
+	if(NULL == (sep = strstr(buf, STATUS_SEPARATOR))
+			|| NULL == (term = strstr(buf, STATUS_TERMINATOR)))
+	{
+		fprintf(stderr, "extract_status: status not found in %s.\n", buf);
+		return NULL;
+	}
+	if(NULL == (*description = strndup(sep + 1, term - sep - 1)))
+	{
+		fprintf(stderr, "extract_status: no memory for status %s.\n", sep + 1);
+		return NULL;
+	}
+	*status_code = atoi(strtok(buf, STATUS_SEPARATOR));
+	if(verbose) printf("extract_status: status \"%d %s\".\n",
+			*status_code, *description);
+	status_found = true;
+	return term;
+}
+/* Takes a response, block by block and parses it.
+ * Extracts status code, status message, header names and values, and data */
+static int response(enum Mode mode, char * responsebuf, const char * filepath)
+{
+	int status_code = 0;
+	char * status_description;
+	Header ** headers = (Header *)malloc(sizeof(Header)), **headers_new;
+	int i = 0; // index into headers array
+	char * pos = responsebuf;
+	pos = extract_status(pos, &status_description, &status_code);
+	for(;pos != NULL && strncmp(pos, HEADER_TERMINATOR, 1);
+			headers_new = realloc(headers, i * sizeof(Header)))
+	{
+		if(headers_new == NULL)
+		{
+			fprintf(stderr, "response: malloc failed for new header.\n");
+			break;
+		} else {
+			headers = headers_new;
+		}
+		pos = extract_header(pos, headers[i]);
+		printf("response: header \"%s:%s\".\n", headers[i]->name, headers[i]->value);
+		i++;
+	}
+	return EXIT_SUCCESS;
+}
 static int request(enum Mode mode, char ** requestbuf, const char * filepath)
 {
 	int err = 0;
@@ -175,7 +300,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				*verbose = false;
 				break;
 			case 'g':
-				if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
+				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
 				{
 					fprintf(stderr,
 							"client: memory not available for filepath %s\n",
@@ -186,7 +311,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				*mode = GIFT;
 				break;
 			case 'w':
-				if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
+				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
 				{
 					fprintf(stderr,
 							"client: memory not available for filepath %s\n",
@@ -197,7 +322,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				*mode = WEASEL;
 				break;
 			case 'l':
-				if(NULL == (filepath = (char*) malloc(sizeof(optarg))))
+				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
 				{
 					fprintf(stderr,
 							"client: memory not available for filepath %s\n",
@@ -215,7 +340,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				{
 					fprintf(stderr,
 							"client: invalid port number %s %s\n",
-							optarg, gai_strerror(errno));
+							optarg, strerror(errno));
 					exit(EXIT_FAILURE);
 				}
 				break;
@@ -241,45 +366,45 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 
 int gift_client(char *filepath, bool verbose)
 {
-    FILE *input_file;
-    long int size_of_file;
-    int error_check;
-    char *gift_request;
+	FILE *input_file;
+	long int size_of_file;
+	int error_check;
+	char *gift_request;
 
-    input_file = file_parameters(filepath, &size_of_file, verbose);
-    if(input_file == NULL)
-    {
-        printf("GIFT_CLIENT: Error opening file for transmission\n");
-        return EXIT_FAILURE;
-    }
+	input_file = file_parameters(filepath, &size_of_file, verbose);
+	if(input_file == NULL)
+	{
+		printf("GIFT_CLIENT: Error opening file for transmission\n");
+		return EXIT_FAILURE;
+	}
 
-    //Setting up the header for the data
-    gift_request = gift_header(filepath, size_of_file, verbose);
-    if(gift_request == NULL)
-    {
-        printf("GIFT_CLIENT: Error in creating the header\n");
-        return EXIT_FAILURE;
-    }
+	//Setting up the header for the data
+	gift_request = gift_header(filepath, size_of_file, verbose);
+	if(gift_request == NULL)
+	{
+		printf("GIFT_CLIENT: Error in creating the header\n");
+		return EXIT_FAILURE;
+	}
 
-    //Might be nicer to pass memory value of gift_request
-    //Not too major, this is functional
-    gift_request = gift_data(input_file, verbose, gift_request);
-    if(gift_request == NULL)
-    {
-        printf("GIFT_CLIENT: Error in reading in the data");
-        return EXIT_FAILURE;
-    }
+	//Might be nicer to pass memory value of gift_request
+	//Not too major, this is functional
+	gift_request = gift_data(input_file, verbose, gift_request);
+	if(gift_request == NULL)
+	{
+		printf("GIFT_CLIENT: Error in reading in the data");
+		return EXIT_FAILURE;
+	}
 
-    //Sedning the data to the server
-    error_check = gift_send(gift_request, verbose);
-    if(error_check == -1)
-    {
-        printf("GIFT_CLIENT: Error in sending the data");
-        return EXIT_FAILURE;
-    }
+	//Sedning the data to the server
+	error_check = gift_send(gift_request, verbose);
+	if(error_check == -1)
+	{
+		printf("GIFT_CLIENT: Error in sending the data");
+		return EXIT_FAILURE;
+	}
 
 
-    return EXIT_SUCCESS;
+	return EXIT_SUCCESS;
 }
 
 static char* gift_data(FILE* input_file, bool verbose, char* gift_request){return (char*) NULL;}
@@ -287,23 +412,23 @@ static int   gift_send(char *gift_request, bool verbose){return -1;}
 
 char *gift_header(char *filepath, long int size_of_file, bool verbose)
 {
-    //Header will always contain: FILENAME <filepath> FILESIZE <size_of_file> LF
-    //The characters require 21 bytes of memory, the size of long int is machine dependent,
-    //the size of the path is variable
-    //Using sizeof(long int), factors in padding, can switch to fixed length either
-    //Memory must also be allocated for the filename and the size of the file
+	//Header will always contain: FILENAME <filepath> FILESIZE <size_of_file> LF
+	//The characters require 21 bytes of memory, the size of long int is machine dependent,
+	//the size of the path is variable
+	//Using sizeof(long int), factors in padding, can switch to fixed length either
+	//Memory must also be allocated for the filename and the size of the file
 
-    //Currently the file name is the same as its path, see notes V2 for more details
-    char* gift_header;
-    long int size_of_name = strlen(filepath);
-    //This won't work as of yet, will need to change long int into a string
-    //Otherwise can't include in the gift request
-    gift_header = (char*)malloc(21 + size_of_name + sizeof(long int));
-
-
+	//Currently the file name is the same as its path, see notes V2 for more details
+	char* gift_header;
+	long int size_of_name = strlen(filepath);
+	//This won't work as of yet, will need to change long int into a string
+	//Otherwise can't include in the gift request
+	gift_header = (char*)malloc(21 + size_of_name + sizeof(long int));
 
 
-    return gift_header;
+
+
+	return gift_header;
 }
 
 
@@ -311,30 +436,30 @@ char *gift_header(char *filepath, long int size_of_file, bool verbose)
 //Returns NULL if file does not exist, or if there is an error in reading the file
 FILE *file_parameters(char *filepath,long int *size_of_file, bool verbose)
 {
-    FILE* input_file;
+	FILE* input_file;
 
-    if( ( input_file = fopen(filepath, READ_ONLY) )== NULL )
-    {
-        if(verbose)
-            printf("File does not exist\n");
-        return input_file;
-    }
-    else
-    {
-        if(verbose)
-            printf("Checking file parameters");
-        fseek(input_file, 0L, SEEK_END);
-        *size_of_file = ftell(input_file);
-        if(verbose)
-            printf("File is %ld bytes long", *size_of_file);
-        if(size_of_file < 0)
-        {
-            perror("Error in file_parameters: File size is less than zero: ");
-            return NULL;
-        }
+	if( ( input_file = fopen(filepath, READ_ONLY) )== NULL )
+	{
+		if(verbose)
+			printf("File does not exist\n");
+		return input_file;
+	}
+	else
+	{
+		if(verbose)
+			printf("Checking file parameters");
+		fseek(input_file, 0L, SEEK_END);
+		*size_of_file = ftell(input_file);
+		if(verbose)
+			printf("File is %ld bytes long", *size_of_file);
+		if(size_of_file < 0)
+		{
+			perror("Error in file_parameters: File size is less than zero: ");
+			return NULL;
+		}
 
-        rewind(input_file);
-    }
+		rewind(input_file);
+	}
 
-    return input_file;
+	return input_file;
 }
