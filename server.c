@@ -33,13 +33,11 @@
 #define NULLBYTE '\0'
 
 typedef struct head{ // Should members be character types?? Change before/after?
-    char *length;
-    char *type;
-    char *timeout;
-    char *date;
+    int  data_length = 0;
+    //Think of default value for timeout
+    int timeout ;
+    //Change to enum
     char *ifexist;
-    //char *last_mod;
-    //char *enc;
 } Header;
 
 typedef struct req{
@@ -198,7 +196,8 @@ int main()
     TCPcloseSocket(listenSocket);
     return 0;
 }
-
+/*Takes a request, parses the data within and stores the data within
+in useful formats within a struct for processing*/
 
 int parse_request(Request *reqRx, Header *headerRx, char *request){
 
@@ -210,6 +209,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //retrieve request 'command'===========================================
     while(request[index++] != ' ')
         char_count++;
+    //Index is now at value after " "
     
     //Allocate memory for command and leave space for NULLBYTE
     read_string = (char *)malloc((char_count + 1)*sizeof(char));
@@ -219,13 +219,22 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         read_string[i] = request[i];
    //Append null byte
     read_string[char_count] = NULLBYTE;
-        
+
+    //Assigns mode of operation to reqRx Mode enum.
+    //Need to check for invalid mode.
+    for(i = 0; i < NUM_MODES; i++)
+        if(!strcmp(read_string, mode_strs[i]))
+            (reqRx->Mode) = i;
+    
+    //Count number of bytes in filepath    
     for(char_count = 0; request[index++] != '\n'; char_count++);
     //Allocate memory for filename
-    reqRx->filename = (char *)malloc(char_count*sizeof(char));
+    reqRx->filename = (char *)malloc((char_count + 1)*sizeof(char));
     
+    //Index is now at beginning of header
+
     //Store filename as string
-    for(i=0; i<char_count; i++)
+    for(i = 0; i < char_count; i++)
         (reqRx->filename)[i] = request[i];
     //Append null byte
     (reqRx->filename)[char_count] = NULLBYTE;

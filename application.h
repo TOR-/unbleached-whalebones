@@ -8,7 +8,7 @@ bool verbose;
 
 typedef enum mode {GIFT, WEASEL, LIST} Mode;
 const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
-const char * header_name[] = {"Data-length", "Timout", "If-exists"};
+const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
