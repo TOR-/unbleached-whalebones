@@ -1,10 +1,15 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
 
+#define NUM_MODES 3
+
 bool verbose;
 
-enum Mode {NONE, GIFT, WEASEL, LIST};
-char * mode_strs[] = {"", "GIFT", "WEASEL", "LIST"};
+enum Mode {GIFT, WEASEL, LIST};
+char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
+
+enum status_num {0, 2};
+const char *status_strings{"swag", "yolo"};
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
