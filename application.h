@@ -8,7 +8,7 @@ bool verbose;
 
 enum Mode {GIFT, WEASEL, LIST};
 char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
-char * header[] = {"Data-length", "Timout", "If-exists"};
+char * header_name[] = {"Data-length", "Timout", "If-exists"};
 
 enum status_num {0, 2};
 const char *status_strings{"swag", "yolo"};
