@@ -20,6 +20,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdbool.h>
+#include "application.h"
+#include "application.c"
 
 #include "CS_TCP.h"
 #include "CS_TCP.c"
@@ -41,7 +43,7 @@ typedef struct head{ // Should members be character types?? Change before/after?
 } Header;
 
 typedef struct req{
-    char *command;
+    enum command;
     char *filename;
     Header *header;
 } Request;
@@ -204,18 +206,19 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     int char_count = 0; // counts length of current substring
     int i = 0; //general loop counter
     int end = 0; //flags end of header
-    
+    char *read_string;
     //retrieve request 'command'===========================================
     while(request[index++] != ' ')
         char_count++;
     
-    //Store command as string
-    reqRx->command = (char *)malloc(char_count*sizeof(char));
+    //Allocate memory for command and leave space for NULLBYTE
+    read_string = (char *)malloc((char_count + 1)*sizeof(char));
     
+    //Store command as string
     for(i=0; i<char_count; i++)
-        (reqRx->command)[i] = request[i];
+        read_string[i] = request[i];
    //Append null byte
-    (reqRx->command)[char_count] = NULLBYTE;
+    read_string[char_count] = NULLBYTE;
         
     for(char_count = 0; request[index++] != '\n'; char_count++);
     //Allocate memory for filename
@@ -227,6 +230,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //Append null byte
     (reqRx->filename)[char_count] = NULLBYTE;
     
+    //Unnecessary. Will be reset upon next function call.
     char_count = 0; // reset to be used for next retrieval
     
     /* could have array to store all member names so this section could be put
