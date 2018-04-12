@@ -107,6 +107,14 @@ int main(int argc, char ** argv)
 	}
 	// Receive response
 	int n_buffers = 0;
+	// Extract status
+	int status_code = 0;
+	char * status_description;
+	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
+	char * pos = extract_status(responsebuf, &status_description, &status_code);
+	response(mode, pos, filepath);
+	memset(responsebuf, 0, MAXRESPONSE);
+	
 	do{
 		ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
 		printf("client:RECEIVED>>>%s<<<\n", responsebuf);
@@ -173,12 +181,9 @@ char * extract_status(char * buf, char ** description, int *status_code)
  * Extracts status code, status message, header names and values, and data */
 static int response(enum Mode mode, char * responsebuf, const char * filepath)
 {
-	int status_code = 0;
-	char * status_description;
-	Header ** headers = (Header *)malloc(sizeof(Header)), **headers_new;
+	Header ** headers = (Header **)malloc(sizeof(Header)), **headers_new;
 	int i = 0; // index into headers array
 	char * pos = responsebuf;
-	pos = extract_status(pos, &status_description, &status_code);
 	for(;pos != NULL && strncmp(pos, HEADER_TERMINATOR, 1);
 			headers_new = realloc(headers, i * sizeof(Header)))
 	{
