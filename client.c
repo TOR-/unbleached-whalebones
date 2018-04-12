@@ -45,10 +45,6 @@ static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 #define STATUS_SEPARATOR " "
 #define STATUS_TERMINATOR "\n"
 
-static int   gift_client(char *filepath, bool verbose);
-static char* gift_header(char *filepath, long int file_size, bool verbose);
-static char* gift_data(FILE* input_file, bool verbose, char* gift_request);
-static int   gift_send(char *gift_request, bool verbose);
 static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
 static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
 char * extract_header(char * buf, Header * header);
@@ -238,11 +234,33 @@ static int weasel(char ** requestbuf, const char * filepath)
 	finish_headers(requestbuf);
 	return 0;
 }
-static int gift(char ** requestbuf, const char * filepath)
-{ return EXIT_FAILURE; }
-static int list(char ** requestbuf, const char * filepath)
-{ return EXIT_FAILURE; }
 
+static int gift(char ** requestbuf, const char * filepath)
+{
+	FILE *input_file;
+	long int size_of_file;
+	int error_check = 0;
+	
+	input_file = file_parameters(filepath, &size_of_file);
+	if(input_file == NULL)
+	{
+		printf("GIFT_CLIENT: Error opening file for transmission\n");
+		return EXIT_FAILURE;
+	}
+	
+	//Can add in function to append headers at a later date
+	finish_headers(requestbuf);
+	
+	
+	error_check = append_data(input_file, requestbuf, size_of_file);
+	if(requestbuf == NULL || error_check == -1)
+	{
+		printf("GIFT_CLIENT: Error in reading in the data");
+		return EXIT_FAILURE;
+	}
+	
+	return EXIT_SUCCESS;
+}
 
 
 static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t *port)
