@@ -4,15 +4,19 @@
 #include <stdbool.h>
 
 #define READ_ONLY "r"
+#define DEBUG
 
+#define END_HEAD ':'
 #define NUM_MODES 3
 #define NUM_HEADERS 3
+#define MAX_HEADER_SIZE 20
 
 bool verbose;
 
 typedef enum {GIFT, WEASEL} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
+typedef enum h_name { DATA_L, TIMEOUT, IF_EXISTS} H_name;
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);

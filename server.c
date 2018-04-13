@@ -31,7 +31,6 @@
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 #define NULLBYTE '\0'
-#define DEBUG 1
 
 typedef struct head{ // Should members be character types?? Change before/after?
     int  data_length;
@@ -197,6 +196,10 @@ int main()
     return 0;
 }
 
+
+
+
+
 /*Takes a request, parses the data within and stores the data within
 in useful formats within a struct for processing*/
 int parse_request(Request *reqRx, Header *headerRx, char *request){
@@ -205,86 +208,112 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     int char_count = 0; // counts length of current substring
     int i = 0; //general loop counter
     int end = 0; //flags end of header
-    char *read_string;
-    //retrieve request 'command'===========================================
+    char headbuff[MAX_HEADER_SIZE]; //Create array to read in each header value
+    char * cmdbuff; //Buffer to store command and filepath
+    char * end_of_header; //Pointer used to store position of end of header
+    bool valid; //Boolean variable used to flag invalid input
+    
+    //retrieve request 'command'
     while(request[index++] != ' ')
         char_count++;
     //Index is now at beginning of filepath
 
     //Allocate memory for command and leave space for NULLBYTE
-    read_string = (char *)malloc((char_count + 1)*sizeof(char));
+    //to store as string
+    cmdbuff = (char *)malloc((char_count + 1)*sizeof(char));
     
     //Store command as temporary string
     for(i=0; i<char_count; i++)
-        read_string[i] = request[i];
+        cmdbuff[i] = request[i];
    //Append null byte
-    read_string[char_count] = NULLBYTE;
-
-    if(DEBUG) printf("cmdRx: %s \n", read_string);
+    cmdbuff[char_count] = NULLBYTE;
 
     //Assigns mode of operation to reqRx Mode enum.
-    //Need to check for invalid mode.
-    for(i = 0; i < NUM_MODES; i++)
-        if(!strcmp(read_string, mode_strs[i]))
+    //Check for invalid mode/command.
+    for(i = 0, valid = false; i < NUM_MODES; i++)
+        if(!strcmp(cmdbuff, mode_strs[i]))
+        {
             (reqRx->cmdRx) = i;
-    
-    if(DEBUG) printf("Command is mode %u\n", (reqRx->cmdRx));
+            valid = true;
+        }
+    //Return appropriate error code.
+    /*
+    if(!valid) return ______;
+    */
+
+    #ifdef DEBUG
+     printf("reqParse: cmdRx: %s \n", cmdbuff);
+     printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
+    #endif
 
     //Count number of bytes in filepath    
     for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
+
     //Allocate memory for filepath
     reqRx->filepath = (char *)malloc((char_count + 1)*sizeof(char));
-    
-    //Index is now at beginning of header
-
     //Store filepath as string
     for(i = 0; i < char_count; i++)
         (reqRx->filepath)[i] = request[i + index];
-    //Append null byte
+
     (reqRx->filepath)[char_count] = NULLBYTE;
 
-    if(DEBUG) printf("Filepath is %s\n", (reqRx->filepath));
+    //Set index to beginning of header.
+    index += i + 1;
 
-    char_count = 0; // reset to be used for next retrieval
-    
-    //retrieve header components===========================================
-    char current_string[20]; // stores <header name>
+    #ifdef DEBUG
+     printf("reqParse: Filepath is %s\n", (reqRx->filepath));
+    #endif
+
+    /*==================================================*/
+    //strstr returns pointer to first ':' found after ip str
+    //In this case, we only want to the value before ':'
+    end_of_header = strchr((request + index), (int)END_HEAD);
     /*
-    while(!end){
-        
-        for(i=0; request[index] != ':'; i++)
-            current_string[i] = request[index++];
-            
-        current_string[++i] = '\0';
-        //can't use switch statement for strings :( any other way?
-        
-        if(strcmp(current_string, "Data-length")){
-            
-            while(request[index++] != '\n')
-                char_count++;
-            
-            //headerRx->data_length = (int *)malloc(char_count*sizeof(char));
-            
-            for(i=0; i<char_count; i++)
-                (headerRx->data_length)[i] = request[(index-char_count)+i];
-            
-            char_count = 0; // reset to be used for next retrieval
-        }
-        //copy for other <header names>
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        
-        
-        if(request[index] == '\n')
-            end = 1;
+    if(end_of_header == NULL){
+        fprintf(stderr,"No colon separater in header");
+        return HEADER_SYNTAX;
     }*/
-        
+    
+    //Subtracting position of final byte from first byte gives
+    //number of bytes to read in including null byte
+    //Store this in char_count
+    char_count = end_of_header - (request + index);
+    
+    #ifdef DEBUG
+     printf("reqParse: Printing %d number of bytes to header.\n", char_count);
+    #endif
+    //Now copy header into headbuff str. 
+    strncpy(headbuff, (request + index), char_count);
+    //Now need to read header value and increment index
+    //Read in value as string
+    //+================================================
+    #ifdef DEBUG
+     printf("reqParse: Header n is %s\n", headbuff);
+    #endif
+    //Now compare header and assign enum
+    //Tests for invalid header
+    for(i = 0, valid = false; i < NUM_HEADERS; i++)
+        if(!strcmp(headbuff, header_name[i]))
+        {
+            switch(i)
+            {
+                case DATA_L:
+                    //headerRx.data_length = atoi(header_value);
+                    valid = true;
+                    break;
+                case TIMEOUT:
+                    //headerRx.timeout = atoi(header_value);
+                    valid = true;
+                    break;
+                case IF_EXISTS:
+                    //headerRx.timeout = header_value;
+                    valid = true;
+                    break;
+            }
+        }
+    //Return appropriate error code
+    /*if(!valid) return _______;*/
+    //====================================================
     return 0;
 }
 
