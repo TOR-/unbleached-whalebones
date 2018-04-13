@@ -31,7 +31,6 @@
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 #define NULLBYTE '\0'
-#define DEBUG 1
 
 typedef struct head{ // Should members be character types?? Change before/after?
     int  data_length;
@@ -205,7 +204,9 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     int char_count = 0; // counts length of current substring
     int i = 0; //general loop counter
     int end = 0; //flags end of header
-    char *read_string;
+    char * read_string;
+    char * end_of_header;
+    char * end_head_mark = {":"};
     //retrieve request 'command'===========================================
     while(request[index++] != ' ')
         char_count++;
@@ -220,7 +221,9 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
    //Append null byte
     read_string[char_count] = NULLBYTE;
 
-    if(DEBUG) printf("cmdRx: %s \n", read_string);
+    #ifdef DEBUG
+     printf("reqParse: cmdRx: %s \n", read_string);
+    #endif
 
     //Assigns mode of operation to reqRx Mode enum.
     //Need to check for invalid mode.
@@ -228,63 +231,77 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         if(!strcmp(read_string, mode_strs[i]))
             (reqRx->cmdRx) = i;
     
-    if(DEBUG) printf("Command is mode %u\n", (reqRx->cmdRx));
+    #ifdef DEBUG
+     printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
+    #endif
 
+    #ifndef DEBUG
     //Count number of bytes in filepath    
     for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
+    #endif
+    
+    //For use with netcat. Cannot send new line characters so must use space.
+    #ifdef DEBUG
+    for(char_count = 0, i = index; request[i++] != ' '; char_count++);
+    #endif
+
     //Allocate memory for filepath
     reqRx->filepath = (char *)malloc((char_count + 1)*sizeof(char));
-    
-    //Index is now at beginning of header
-
     //Store filepath as string
     for(i = 0; i < char_count; i++)
         (reqRx->filepath)[i] = request[i + index];
     //Append null byte
     (reqRx->filepath)[char_count] = NULLBYTE;
 
-    if(DEBUG) printf("Filepath is %s\n", (reqRx->filepath));
+    //Index is now at new the line/beginning of header.
+    index += i + 1;
 
-    char_count = 0; // reset to be used for next retrieval
+    #ifdef DEBUG
+     printf("reqParse: Filepath is %s\n", (reqRx->filepath));
+    #endif
     
-    //retrieve header components===========================================
-    char current_string[20]; // stores <header name>
-    /*
-    while(!end){
-        
-        for(i=0; request[index] != ':'; i++)
-            current_string[i] = request[index++];
-            
-        current_string[++i] = '\0';
-        //can't use switch statement for strings :( any other way?
-        
-        if(strcmp(current_string, "Data-length")){
-            
-            while(request[index++] != '\n')
-                char_count++;
-            
-            //headerRx->data_length = (int *)malloc(char_count*sizeof(char));
-            
-            for(i=0; i<char_count; i++)
-                (headerRx->data_length)[i] = request[(index-char_count)+i];
-            
-            char_count = 0; // reset to be used for next retrieval
+    //Create array to read in each header value
+    char read_header[MAX_HEADER_SIZE];
+
+    /*==================================================*/
+    //strstr returns pointer to first ':' found after ip str
+    //In this case, we only want to the value before ':'
+    end_of_header = strstr((request + index), end_head_mark);
+    //Subtracting position of final byte from first byte gives
+    //number of bytes to read in including null byte
+    //Store this in i
+    i = end_of_header - (request + index);
+    
+    #ifdef DEBUG
+     printf("reqParse: Printing %d number of bytes to header.\n", i);
+    #endif
+    //Now copy header into read_header str. 
+    strncpy(read_header, (request + index), i);
+    //Now need to read header value and increment index
+    //Read in value as string
+    //+================================================
+    #ifdef DEBUG
+     printf("reqParse: Header n is %s\n", read_header);
+    #endif
+    //Now compare header and assign enum
+    //NEED TO TEST FOR INVALID HEADER
+    for(i = 0; i < NUM_HEADERS; i++)
+        if(!strcmp(read_header, header_name[i]))
+        {
+            switch(i)
+            {
+                case DATA_L:
+                    //headerRx.data_length = atoi(header_value);
+                    break;
+                case TIMEOUT:
+                    //headerRx.timeout = atoi(header_value);
+                    break;
+                case IF_EXISTS:
+                    //headerRx.timeout = header_value;
+                    break;
+            }
         }
-        //copy for other <header names>
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        //
-        
-        
-        if(request[index] == '\n')
-            end = 1;
-    }*/
-        
+    //====================================================
     return 0;
 }
 
