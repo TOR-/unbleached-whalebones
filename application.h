@@ -2,7 +2,6 @@
 #define APPLICATION_H
 #define READ_ONLY "r"
 #define DEBUG
-#define NETCAT
 
 #define END_HEAD ':'
 #define NUM_MODES 3
