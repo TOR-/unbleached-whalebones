@@ -19,13 +19,34 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <stdbool.h>
+#include "application.h"
+#include "application.c"
 
 #include "CS_TCP.h"
+#include "CS_TCP.c"
 
 #define SERVER_PORT 6666  // port to be used by the server
-#define MAXREQUEST 52      // size of request array, in bytes
+#define MAXREQUEST 64      // size of request array, in bytes
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
+#define NULLBYTE '\0'
+#define DEBUG 1
+
+typedef struct head{ // Should members be character types?? Change before/after?
+    int  data_length;
+    int timeout ;
+    //Change to enum
+    char *ifexist;
+} Header;
+
+typedef struct req{
+    Mode cmdRx;
+    char *filepath;
+    Header *header;
+} Request;
+
+int parse_request(Request *reqRx, Header *headerRx, char *request);
 
 int main()
 {
@@ -43,10 +64,6 @@ int main()
     char response[MAXRESPONSE+1]; // array to hold our response
     char welcome[] = "Welcome to the Communication Systems server.";
     char goodbye[] = "Goodbye, and thank you for using the server. ###";
-
-    // Print starting message
-    printf("\nCommunication Systems server program\n\n");
-
 
 // ============== SERVER SETUP ===========================================
 
@@ -68,9 +85,13 @@ int main()
 
 
 // ============== RECEIVE REQUEST ======================================
-
+    
+    Request reqRx;
+    Header headerRx;
+    reqRx.header = &headerRx; //req member now points to header structure
+    
     // Loop to receive data from the client, until the end marker is found
-    while (stop == 0)   // loop is controlled by the stop flag
+    while (!stop)   // loop is controlled by the stop flag
     {
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
@@ -81,7 +102,7 @@ int main()
 
         if( numRx < 0)  // check for error
         {
-            printf("Problem receiving, maybe connection closed by client?\n%s\n", gai_strerror(errno));
+            printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
             stop = 1;   // set the flag to end the loop
         }
         else if (numRx == 0)  // indicates connection closing (but not an error)
@@ -91,9 +112,18 @@ int main()
         }
         else // numRx > 0 => we got some data from the client
         {
+            printf("Server: REQ received\n");
             request[numRx] = 0;  // add 0 byte to make request into a string
             // Print details of the request
-            printf("\nRequest received, %d bytes: '%s'\n", numRx, request);
+            printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
+            
+            //function to parse request[] and store values in structure
+            if( parse_request(&reqRx, &headerRx, request) != 0 )
+                fprintf(stderr, "Server: Unable to parse request received!");
+            
+            //function to process requests
+            //...
+            /*Search request and see how server should respond.*/
 
             // Check to see if the request contains the end marker
             loc = memchr(request, ENDMARK, numRx);  // search the array
@@ -166,3 +196,97 @@ int main()
     TCPcloseSocket(listenSocket);
     return 0;
 }
+
+/*Takes a request, parses the data within and stores the data within
+in useful formats within a struct for processing*/
+int parse_request(Request *reqRx, Header *headerRx, char *request){
+
+    int index = 0; // current location within request[]
+    int char_count = 0; // counts length of current substring
+    int i = 0; //general loop counter
+    int end = 0; //flags end of header
+    char *read_string;
+    //retrieve request 'command'===========================================
+    while(request[index++] != ' ')
+        char_count++;
+    //Index is now at beginning of filepath
+
+    //Allocate memory for command and leave space for NULLBYTE
+    read_string = (char *)malloc((char_count + 1)*sizeof(char));
+    
+    //Store command as temporary string
+    for(i=0; i<char_count; i++)
+        read_string[i] = request[i];
+   //Append null byte
+    read_string[char_count] = NULLBYTE;
+
+    if(DEBUG) printf("cmdRx: %s \n", read_string);
+
+    //Assigns mode of operation to reqRx Mode enum.
+    //Need to check for invalid mode.
+    for(i = 0; i < NUM_MODES; i++)
+        if(!strcmp(read_string, mode_strs[i]))
+            (reqRx->cmdRx) = i;
+    
+    if(DEBUG) printf("Command is mode %u\n", (reqRx->cmdRx));
+
+    //Count number of bytes in filepath    
+    for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
+    //Allocate memory for filepath
+    reqRx->filepath = (char *)malloc((char_count + 1)*sizeof(char));
+    
+    //Index is now at beginning of header
+
+    //Store filepath as string
+    for(i = 0; i < char_count; i++)
+        (reqRx->filepath)[i] = request[i + index];
+    //Append null byte
+    (reqRx->filepath)[char_count] = NULLBYTE;
+
+    if(DEBUG) printf("Filepath is %s\n", (reqRx->filepath));
+
+    char_count = 0; // reset to be used for next retrieval
+    
+    //retrieve header components===========================================
+    char current_string[20]; // stores <header name>
+    /*
+    while(!end){
+        
+        for(i=0; request[index] != ':'; i++)
+            current_string[i] = request[index++];
+            
+        current_string[++i] = '\0';
+        //can't use switch statement for strings :( any other way?
+        
+        if(strcmp(current_string, "Data-length")){
+            
+            while(request[index++] != '\n')
+                char_count++;
+            
+            //headerRx->data_length = (int *)malloc(char_count*sizeof(char));
+            
+            for(i=0; i<char_count; i++)
+                (headerRx->data_length)[i] = request[(index-char_count)+i];
+            
+            char_count = 0; // reset to be used for next retrieval
+        }
+        //copy for other <header names>
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        //
+        
+        
+        if(request[index] == '\n')
+            end = 1;
+    }*/
+        
+    return 0;
+}
+
+
+
