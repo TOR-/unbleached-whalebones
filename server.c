@@ -204,44 +204,52 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     int char_count = 0; // counts length of current substring
     int i = 0; //general loop counter
     int end = 0; //flags end of header
-    char * read_string;
-    char * end_of_header;
-    char * end_head_mark = {":"};
-    //retrieve request 'command'===========================================
+    char headbuff[MAX_HEADER_SIZE]; //Create array to read in each header value
+    char * cmdbuff; //Buffer to store command and filepath
+    char * end_of_header; //Pointer used to store position of end of header
+    bool valid; //Boolean variable used to flag invalid input
+    
+    //retrieve request 'command'
     while(request[index++] != ' ')
         char_count++;
     //Index is now at beginning of filepath
 
     //Allocate memory for command and leave space for NULLBYTE
-    read_string = (char *)malloc((char_count + 1)*sizeof(char));
+    //to store as string
+    cmdbuff = (char *)malloc((char_count + 1)*sizeof(char));
     
     //Store command as temporary string
     for(i=0; i<char_count; i++)
-        read_string[i] = request[i];
+        cmdbuff[i] = request[i];
    //Append null byte
-    read_string[char_count] = NULLBYTE;
-
-    #ifdef DEBUG
-     printf("reqParse: cmdRx: %s \n", read_string);
-    #endif
+    cmdbuff[char_count] = NULLBYTE;
 
     //Assigns mode of operation to reqRx Mode enum.
-    //Need to check for invalid mode.
-    for(i = 0; i < NUM_MODES; i++)
-        if(!strcmp(read_string, mode_strs[i]))
+    //Check for invalid mode/command.
+    for(i = 0, valid = false; i < NUM_MODES; i++)
+        if(!strcmp(cmdbuff, mode_strs[i]))
+        {
             (reqRx->cmdRx) = i;
-    
+            valid = true;
+        }
+    //Return appropriate error code.
+    /*
+    if(!valid) return ______;
+    */
+
+
     #ifdef DEBUG
+     printf("reqParse: cmdRx: %s \n", cmdbuff);
      printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
     #endif
 
-    #ifndef DEBUG
+    #ifndef NETCAT
     //Count number of bytes in filepath    
     for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
     #endif
     
     //For use with netcat. Cannot send new line characters so must use space.
-    #ifdef DEBUG
+    #ifdef NETCAT
     for(char_count = 0, i = index; request[i++] != ' '; char_count++);
     #endif
 
@@ -250,57 +258,59 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //Store filepath as string
     for(i = 0; i < char_count; i++)
         (reqRx->filepath)[i] = request[i + index];
-    //Append null byte
+
     (reqRx->filepath)[char_count] = NULLBYTE;
 
-    //Index is now at new the line/beginning of header.
+    //Set index to beginning of header.
     index += i + 1;
 
     #ifdef DEBUG
      printf("reqParse: Filepath is %s\n", (reqRx->filepath));
     #endif
-    
-    //Create array to read in each header value
-    char read_header[MAX_HEADER_SIZE];
 
     /*==================================================*/
     //strstr returns pointer to first ':' found after ip str
     //In this case, we only want to the value before ':'
-    end_of_header = strstr((request + index), end_head_mark);
+    end_of_header = strchr((request + index), (int)END_HEAD);
     //Subtracting position of final byte from first byte gives
     //number of bytes to read in including null byte
-    //Store this in i
-    i = end_of_header - (request + index);
+    //Store this in char_count
+    char_count = end_of_header - (request + index);
     
     #ifdef DEBUG
-     printf("reqParse: Printing %d number of bytes to header.\n", i);
+     printf("reqParse: Printing %d number of bytes to header.\n", char_count);
     #endif
-    //Now copy header into read_header str. 
-    strncpy(read_header, (request + index), i);
+    //Now copy header into headbuff str. 
+    strncpy(headbuff, (request + index), char_count);
     //Now need to read header value and increment index
     //Read in value as string
     //+================================================
     #ifdef DEBUG
-     printf("reqParse: Header n is %s\n", read_header);
+     printf("reqParse: Header n is %s\n", headbuff);
     #endif
     //Now compare header and assign enum
-    //NEED TO TEST FOR INVALID HEADER
-    for(i = 0; i < NUM_HEADERS; i++)
-        if(!strcmp(read_header, header_name[i]))
+    //Tests for invalid header
+    for(i = 0, valid = false; i < NUM_HEADERS; i++)
+        if(!strcmp(headbuff, header_name[i]))
         {
             switch(i)
             {
                 case DATA_L:
                     //headerRx.data_length = atoi(header_value);
+                    valid = true;
                     break;
                 case TIMEOUT:
                     //headerRx.timeout = atoi(header_value);
+                    valid = true;
                     break;
                 case IF_EXISTS:
                     //headerRx.timeout = header_value;
+                    valid = true;
                     break;
             }
         }
+    //Return appropriate error code
+    /*if(!valid) return _______;*/
     //====================================================
     return 0;
 }
