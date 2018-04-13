@@ -25,18 +25,17 @@ typedef struct{
 }Header;
 
 /* Mode-agnostic request construction */
-static int request(enum Mode, char **, const char *);
+static int request(Mode_t mode, char **, char * );
 /* Response parser */
-static int response(enum Mode, char *, const char *);
+//static int response(Mode_t mode, char *, char * );
 /* Mode-specific request construction */
-static int gift(char ** requestbuf, const char * filepath);
-static int weasel(char ** requestbuf, const char * filepath);
-static int list(char ** requestbuf, const char * filepath);
+static int gift(char ** requestbuf, char * filepath);
+static int weasel(char ** requestbuf, char * filepath);
 /* Array of pointers to mode-specific operation functions */
-static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
+static int (*mode_funs[])(char **, char *) = {gift, weasel};
 
 #define IPV4LEN 12
-#define OPTSTRING "vqg:w:l:hi:p:"
+#define OPTSTRING "vqg:w:hi:p:"
 #define READ_ONLY "r"
 #define MAXRESPONSE 90
 
@@ -45,21 +44,21 @@ static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 #define STATUS_SEPARATOR " "
 #define STATUS_TERMINATOR "\n"
 
-static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
-static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
-char * extract_header(const char * buf, Header * header, bool * finished);
-char * extract_status(const char * buf, char ** description, int *status_code);
+FILE * file_parameters(char * filepath, long int *file_size);
+static char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
+char * extract_header(char * buf, Header * header, bool * finished);
+char * extract_status(char * buf, char ** description, int *status_code);
 
 int main(int argc, char ** argv)
 {
 	char * filepath, ip[IPV4LEN];
 	uint16_t port = 0;
-	enum Mode mode = NONE;
+	int mode;
 
 	// Set flag default values
 	verbose = false;
 
-	filepath = process_input(argc, argv, &mode, &verbose, ip, &port);
+	filepath = process_input(argc, argv, &mode, ip, &port);
 
 
 	if(filepath == NULL)
@@ -87,7 +86,7 @@ int main(int argc, char ** argv)
 
 	int ret = 0;
 	// Send request
-	if(ret = send(sockfd, requestbuf, strlen(requestbuf), 0) < 1)
+	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
 		return EXIT_FAILURE;
@@ -109,13 +108,13 @@ int main(int argc, char ** argv)
 	
 	memset(responsebuf, 0, MAXRESPONSE);
 	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
-	if(NULL == (pos = extract_status((const char *)responsebuf, &status_description, &status_code)))
+	if(NULL == (pos = extract_status(responsebuf, &status_description, &status_code)))
 	{
 		fprintf(stderr, "client: failed to find a status in response.\n");
 		return EXIT_FAILURE;
 	}
 	if(verbose) printf("extract_status: response status \"%d %s\".\n",
-			*status_code, *status_description);
+			status_code, status_description);
 	// Extract headers
 	bool headers_finished = false;
 	Header ** headers, ** headers_tmp;
@@ -127,10 +126,10 @@ int main(int argc, char ** argv)
 		// Receive <= (MAXRESPONSE - last_term) bytes, 
 		// Append to responsebuf
 		memmove(last_term + 1, responsebuf, MAXRESPONSE - (last_term - responsebuf));
-		ret = recv(sockfd, responsebuf + last_term, MAXRESPONSE - (last_term - responsebuf));
+		ret = recv(sockfd, last_term, MAXRESPONSE - (last_term - responsebuf), 0);
 		printf("client:RECEIVED>>>%s<<<\n", responsebuf);
 		// find all headers in buffer
-		for(; false == headers_finished && NULL != pos; i++)
+		for(; false == headers_finished && NULL != pos; n_headers++)
 		{
 			// headers not finished, header was found
 			headers_tmp = realloc(headers, sizeof(Header) * (1 + n_headers));
@@ -139,7 +138,7 @@ int main(int argc, char ** argv)
 			headers = headers_tmp;
 			n_headers++;
 			last_term = pos;
-			pos = extract_header(pos + 1, headers[i], &headers_finished);
+			pos = extract_header(pos + 1, headers[n_headers], &headers_finished);
 		}
 	}
 	// Process headers
@@ -149,9 +148,9 @@ int main(int argc, char ** argv)
 	free(filepath);
 	return EXIT_SUCCESS;
 }
-/* Populates fields in <header> with firse header found in <buf>
+/* Populates fields in <header> with first header found in <buf>
  * Returns pointer to the end of the header or NULL if not found */
-char * extract_header(const char * buf, Header * header, bool * finished)
+char * extract_header(char * buf, Header * header, bool * finished)
 {
 	char * sep = buf, * term = buf; // Position of substring in string
 	if(0 == strncmp(buf + 1, HEADER_TERMINATOR, 1))
@@ -177,7 +176,7 @@ char * extract_header(const char * buf, Header * header, bool * finished)
 }
 
 /* Extracts a status number and description from a buffer <buf> */
-char * extract_status(const char * buf, char ** description, int *status_code)
+char * extract_status(char * buf, char ** description, int *status_code)
 {
 	static bool status_found = false;
 	if(status_found) return buf;
@@ -200,13 +199,9 @@ char * extract_status(const char * buf, char ** description, int *status_code)
 }
 /* Takes a response, block by block and parses it.
  * Extracts status code, status message, header names and values, and data */
-static int response(enum Mode mode, char * responsebuf, const char * filepath)
+//static int response(Mode_t mode, char * responsebuf, char * filepath){return EXIT_SUCCESS;}
+static int request(Mode_t mode, char ** requestbuf, char * filepath)
 {
-	return EXIT_SUCCESS;
-}
-static int request(enum Mode mode, char ** requestbuf, const char * filepath)
-{
-	int err = 0;
 	// Add command to header
 	// Allocate memory
 	if(NULL == (*requestbuf = (char *) malloc(strlen(mode_strs[mode]) + 1 + strlen(filepath) + 2)))
@@ -235,7 +230,7 @@ static int request(enum Mode mode, char ** requestbuf, const char * filepath)
 }
 
 /* Appends weasel-specific headers to request in *requestbuf */
-static int weasel(char ** requestbuf, const char * filepath)
+static int weasel(char ** requestbuf, char * filepath)
 {
 	// How many headers?
 	// None?
@@ -243,7 +238,7 @@ static int weasel(char ** requestbuf, const char * filepath)
 	return 0;
 }
 
-static int gift(char ** requestbuf, const char * filepath)
+static int gift(char ** requestbuf, char * filepath)
 {
 	FILE *input_file;
 	long int size_of_file;
@@ -271,7 +266,7 @@ static int gift(char ** requestbuf, const char * filepath)
 }
 
 
-static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t *port)
+static char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port)
 {
 	char optc; // Option character
 	int opti = 0; // Index into option array
@@ -285,7 +280,6 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 			{"quiet",	no_argument, 		0,	'q'},
 			{"gift",	required_argument,	0,	'g'},
 			{"weasel",	required_argument,	0,	'w'},
-			{"list",	required_argument,	0,	'l'},
 			{"help",	no_argument,		0,	'h'},
 			{"ip",		required_argument,	0,	'i'},
 			{"port",	required_argument,	0,	'p'}
@@ -303,10 +297,10 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 			case 0: // Flag has been set
 				break;
 			case 'v':
-				*verbose = true;
+				verbose = true;
 				break;
 			case 'q':
-				*verbose = false;
+				verbose = false;
 				break;
 			case 'g':
 				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
@@ -330,17 +324,6 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				strcpy(filepath, optarg);
 				*mode = WEASEL;
 				break;
-			case 'l':
-				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
-				{
-					fprintf(stderr,
-							"client: memory not available for filepath %s\n",
-							(char *) optarg);
-					exit(EXIT_FAILURE);
-				}
-				strcpy(filepath, optarg);
-				*mode = LIST;
-				break;
 			case 'i':
 				strcpy(ip, optarg);
 				break;
@@ -363,7 +346,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				printf("-q\t--quiet\tRun the program in quiet mode. Default.\n\n");
 				printf("-g\t--gift\tGIFT server with file <filepath>.\n");
 				printf("-w\t--weasel\tWeasel(get) file <filepath> from server.\n");
-				printf("-l\t--list\tList files from <filepath> and below.\n");
+//				printf("-l\t--list\tList files from <filepath> and below.\n");
 				printf("-h\t--help\tDisplay this help.\n");
 				printf("-i\t--ip\tIPv4 of host to connect to.\n");
 				printf("-p\t--port\tPort on host to connect to.\n");

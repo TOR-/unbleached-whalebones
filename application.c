@@ -2,6 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "application.h"
+
+const char * mode_strs[] = {"GIFT", "WEASEL"};
+const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
+
 /* Appends a header to a <LF> separated list of headers
  * appends <name>:<content>\n
  * returns status code */
@@ -52,7 +57,7 @@ int finish_headers(char ** headers)
 
 //Function to check the parameters of a file
 //Returns NULL if file does not exist, or if there is an error in reading the file
-FILE *file_parameters(const char *filepath,long int *size_of_file)
+FILE *file_parameters(char *filepath, long int *size_of_file)
 {
 	FILE* input_file;
 	
@@ -70,7 +75,7 @@ FILE *file_parameters(const char *filepath,long int *size_of_file)
 		*size_of_file = ftell(input_file);
 		if(verbose)
 			printf("File is %ld bytes long", *size_of_file);
-		if(size_of_file < 0)
+		if(*size_of_file < 0)
 		{
 			perror("Error in file_parameters: File size is less than zero: ");
 			return NULL;
