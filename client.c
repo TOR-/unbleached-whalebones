@@ -47,8 +47,8 @@ static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
 
 static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
 static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
-char * extract_header(char * buf, Header * header);
-char * extract_status(char * buf, char ** description, int *status_code);
+char * extract_header(const char * buf, Header * header, bool * finished);
+char * extract_status(const char * buf, char ** description, int *status_code);
 
 int main(int argc, char ** argv)
 {
@@ -102,36 +102,62 @@ int main(int argc, char ** argv)
 		return EXIT_FAILURE;
 	}
 	// Receive response
-	int n_buffers = 0;
+	char * pos; // Current position in response buffer
 	// Extract status
 	int status_code = 0;
 	char * status_description;
-	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
-	char * pos = extract_status(responsebuf, &status_description, &status_code);
-	response(mode, pos, filepath);
-	memset(responsebuf, 0, MAXRESPONSE);
 	
-	do{
-		ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
+	memset(responsebuf, 0, MAXRESPONSE);
+	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
+	if(NULL == (pos = extract_status((const char *)responsebuf, &status_description, &status_code)))
+	{
+		fprintf(stderr, "client: failed to find a status in response.\n");
+		return EXIT_FAILURE;
+	}
+	if(verbose) printf("extract_status: response status \"%d %s\".\n",
+			*status_code, *status_description);
+	// Extract headers
+	bool headers_finished = false;
+	Header ** headers, ** headers_tmp;
+	int n_headers;
+	char * last_term = pos; // Position of last HEADER_TERMINATOR found
+	for(n_headers = 0; false == headers_finished && ret > 0;)
+	{
+		// Copy unprocessed data into beginning of responsebuf
+		// Receive <= (MAXRESPONSE - last_term) bytes, 
+		// Append to responsebuf
+		memmove(last_term + 1, responsebuf, MAXRESPONSE - (last_term - responsebuf));
+		ret = recv(sockfd, responsebuf + last_term, MAXRESPONSE - (last_term - responsebuf));
 		printf("client:RECEIVED>>>%s<<<\n", responsebuf);
-		response(mode, responsebuf, filepath);
-		memset(responsebuf, 0, MAXRESPONSE);
-	} while (ret > 0);
+		// find all headers in buffer
+		for(; false == headers_finished && NULL != pos; i++)
+		{
+			// headers not finished, header was found
+			headers_tmp = realloc(headers, sizeof(Header) * (1 + n_headers));
+			if(headers_tmp == NULL) // No complete header found in buffer
+			   continue;
+			headers = headers_tmp;
+			n_headers++;
+			last_term = pos;
+			pos = extract_header(pos + 1, headers[i], &headers_finished);
+		}
+	}
+	// Process headers
+	// 	Receive any data
+	
 
 	free(filepath);
 	return EXIT_SUCCESS;
 }
 /* Populates fields in <header> with firse header found in <buf>
  * Returns pointer to the end of the header or NULL if not found */
-char * extract_header(char * buf, Header * header)
+char * extract_header(const char * buf, Header * header, bool * finished)
 {
-	static bool headers_finished = false;
-	if(headers_finished) return buf;
 	char * sep = buf, * term = buf; // Position of substring in string
-	if(0 == strncmp(buf, HEADER_TERMINATOR, 1))
+	if(0 == strncmp(buf + 1, HEADER_TERMINATOR, 1))
 	{
-		headers_finished = true;
-		return buf;
+		*finished = true;
+		return buf + 1;
 	}
 	if(NULL == (sep = strstr(buf, HEADER_SEPARATOR))
 			|| NULL == (term = strstr(buf, HEADER_TERMINATOR)))
@@ -150,7 +176,8 @@ char * extract_header(char * buf, Header * header)
 	return term;
 }
 
-char * extract_status(char * buf, char ** description, int *status_code)
+/* Extracts a status number and description from a buffer <buf> */
+char * extract_status(const char * buf, char ** description, int *status_code)
 {
 	static bool status_found = false;
 	if(status_found) return buf;
@@ -168,8 +195,6 @@ char * extract_status(char * buf, char ** description, int *status_code)
 		return NULL;
 	}
 	*status_code = atoi(strtok(buf, STATUS_SEPARATOR));
-	if(verbose) printf("extract_status: status \"%d %s\".\n",
-			*status_code, *description);
 	status_found = true;
 	return term;
 }
@@ -177,23 +202,6 @@ char * extract_status(char * buf, char ** description, int *status_code)
  * Extracts status code, status message, header names and values, and data */
 static int response(enum Mode mode, char * responsebuf, const char * filepath)
 {
-	Header ** headers = (Header **)malloc(sizeof(Header)), **headers_new;
-	int i = 0; // index into headers array
-	char * pos = responsebuf;
-	for(;pos != NULL && strncmp(pos, HEADER_TERMINATOR, 1);
-			headers_new = realloc(headers, i * sizeof(Header)))
-	{
-		if(headers_new == NULL)
-		{
-			fprintf(stderr, "response: malloc failed for new header.\n");
-			break;
-		} else {
-			headers = headers_new;
-		}
-		pos = extract_header(pos, headers[i]);
-		printf("response: header \"%s:%s\".\n", headers[i]->name, headers[i]->value);
-		i++;
-	}
 	return EXIT_SUCCESS;
 }
 static int request(enum Mode mode, char ** requestbuf, const char * filepath)
