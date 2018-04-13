@@ -196,6 +196,10 @@ int main()
     return 0;
 }
 
+
+
+
+
 /*Takes a request, parses the data within and stores the data within
 in useful formats within a struct for processing*/
 int parse_request(Request *reqRx, Header *headerRx, char *request){
@@ -237,21 +241,13 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     if(!valid) return ______;
     */
 
-
     #ifdef DEBUG
      printf("reqParse: cmdRx: %s \n", cmdbuff);
      printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
     #endif
 
-    #ifndef NETCAT
     //Count number of bytes in filepath    
     for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
-    #endif
-    
-    //For use with netcat. Cannot send new line characters so must use space.
-    #ifdef NETCAT
-    for(char_count = 0, i = index; request[i++] != ' '; char_count++);
-    #endif
 
     //Allocate memory for filepath
     reqRx->filepath = (char *)malloc((char_count + 1)*sizeof(char));
@@ -272,6 +268,12 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //strstr returns pointer to first ':' found after ip str
     //In this case, we only want to the value before ':'
     end_of_header = strchr((request + index), (int)END_HEAD);
+    /*
+    if(end_of_header == NULL){
+        fprintf(stderr,"No colon separater in header");
+        return HEADER_SYNTAX;
+    }*/
+    
     //Subtracting position of final byte from first byte gives
     //number of bytes to read in including null byte
     //Store this in char_count
