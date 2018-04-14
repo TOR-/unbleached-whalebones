@@ -196,6 +196,10 @@ int main()
     return 0;
 }
 
+
+
+
+
 /*Takes a request, parses the data within and stores the data within
 in useful formats within a struct for processing*/
 int parse_request(Request *reqRx, Header *headerRx, char *request){
@@ -237,22 +241,14 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     if(!valid) return ______;
     */
 
-
     #ifdef DEBUG
     printf("reqParse: valid == %d\n", valid);
     printf("reqParse: cmdRx: %s \n", cmdbuff);
     printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
     #endif
 
-    #ifndef NETCAT
     //Count number of bytes in filepath    
     for(char_count = 0, i = index; request[i++] != '\n'; char_count++);
-    #endif
-    
-    //For use with netcat. Cannot send new line characters so must use space.
-    #ifdef NETCAT
-    for(char_count = 0, i = index; request[i++] != ' '; char_count++);
-    #endif
 
     //Allocate memory for filepath
     reqRx->filepath = (char *)malloc((char_count + 1)*sizeof(char));

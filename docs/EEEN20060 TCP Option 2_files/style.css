@@ -1,0 +1,66 @@
+body, p, br, ul, li, dd, td {
+  font-family: Verdana,Arial,Helvetica,sans-serif;
+  color: #222222;
+  font-size: medium;
+  line-height: 1.2em;
+}
+h1, h2, h3, h4, h5 , dt{
+  color: #003399;
+  line-height: 25px;
+}
+li , dd{
+  padding-bottom: 5px;
+}
+a:link {
+  text-decoration: underline;
+}
+a:visited {
+  text-decoration: underline;
+}
+a:hover {
+  color: #66ccff;
+  text-decoration: underline;
+}
+.topmenu {
+  font-family: Verdana,ArialHelvetica,sans-serif;
+  color: #cccccc;
+  padding-right: 2px;
+  padding-left: 2px;
+  padding-bottom: 0px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: normal;
+}
+a.topmenu:link {
+  color: #ffffff;
+  text-decoration: none;
+}
+a.topmenu:visited {
+  color: #ffffff;
+  text-decoration: none;
+}
+a.topmenu:hover {
+  color: #66ccff;
+  text-decoration: underline;
+}
+.smalltext {
+  font-family: Verdana,Arial,Helvetica,sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  color: #555555;
+}
+.codetext {
+  color: #0000cc;
+}
+#bytetable  table{
+border-collapse:collapse;
+border: 1px solid blue;
+}
+#bytetable  td{
+	padding:10px;
+	border: 1px solid blue;
+	}
+#bytetable td.alt {
+	background-color:Aqua;
+	}
+

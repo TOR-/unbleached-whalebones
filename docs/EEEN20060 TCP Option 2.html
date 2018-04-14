@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252">
+
+<title>EEEN20060 TCP Option 2</title>
+<link type="text/css" rel="stylesheet" href="EEEN20060%20TCP%20Option%202_files/style.css"></head>
+<body>
+<!-- heading table -->
+<table style="width: 80%; text-align: left; margin-left: auto; margin-right: auto;" cellspacing="0" cellpadding="10" border="0" align="center">
+<tbody>
+<tr>
+<td><img style="width: 150px; height: 221px;" alt="UCD Crest" src="EEEN20060%20TCP%20Option%202_files/UCDcrest150.jpg" vspace="10"></td>
+<td width="20%"><br>
+</td>
+<td>
+<h2 style="font-weight: normal;">UCD School of Electrical<br>
+and Electronic Engineering<br>
+&nbsp;
+</h2>
+<h2 style="font-weight: normal;">EEEN20060<br>
+Communication Systems Laboratory</h2>
+</td>
+</tr>
+</tbody>
+</table>
+<!-- end heading table -->
+<table style="width: 80%; text-align: center; margin-left: auto; margin-right: auto;" cellspacing="10" cellpadding="10" border="0" align="center">
+<tbody>
+<tr>
+<td>
+<h1>Internet &amp; TCP - Option 2</h1>
+</td>
+</tr>
+</tbody>
+</table>
+<!-- main table -->
+<table style="width: 80%; text-align: left; margin-left: auto; margin-right: auto;" cellspacing="0" cellpadding="10" border="0" align="center">
+<tbody>
+<tr valign="top">
+<td>
+<h2>Requirement</h2>
+<p>Design your own application layer protocol to transfer a file over the Internet 
+using TCP, and write both the client program and the server program to implement it.</p>
+<p>You may choose whether to transfer a file from client to server or from
+server to client.&nbsp; 
+A better implementation would allow transfers in either direction.&nbsp; 
+Either way, the transfer should be controlled from the client - there should be 
+no need for user input at the server.</p>
+<p>With a team of four students, two of you should write the client
+program and two should write the server program.&nbsp;
+Obviously, you should agree on the protocol design before you start.</p>
+
+<h3>Client Details</h3>
+<p>The client program should ask the user for the IP address of the server, 
+and perhaps the port number.&nbsp;
+It should also ask for the name of the file to be transferred,
+and perhaps the direction of transfer (upload or download, send or get).</p>
+<p>The client should then open a TCP connection to the server.&nbsp; 
+See the <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/TCP-operation.html">TCP</a> page for details 
+of how to do this, or look at the example in <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/client.c">client.c</a>.</p>
+<p>When the connection is established, the client can
+send a command or request to the server.&nbsp; 
+This could ask the server to find a specified file and send it back to the client (download), 
+or it could ask the server to accept a file that the client is about to send (upload).&nbsp; 
+The structure of the request will depend on the protocol that you have designed.</p>
+<p>If the server accepts the request, or if your protocol does not allow it to refuse, 
+the client must then either accept the file from the server or send the file to the
+server, as appropriate.&nbsp; 
+It could then allow the user to request another transfer, or it could close 
+the connection and stop.</p>
+
+<h3>Server Details</h3>
+<p>The server program should listen on port 32980 - the Windows firewall on the 
+lab computers has been configured to allow programs to accept connections 
+on that port.&nbsp;
+If you are testing on your own computer, you can use a different port, but
+you will probably have to grant permission for your program to use that port.</p>
+<p>See the <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/TCP-operation.html">TCP</a> page 
+for details of how to set up the server to accept connection requests,
+or look at the example in <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/server.c">server.c</a>.</p>
+<p>When a client connects, the server should do whatever the client requests.&nbsp;
+It would be useful to print messages to show what it is doing, but it
+should not ask the user for any input.</p>
+<p>If the server is asked to send a file (download), it is
+possible that the file may not exist.&nbsp; 
+The server should return some appropriate response to the client.</p>
+<p>If the server is asked to receive a file (upload), it
+must store the file somewhere.&nbsp; 
+If the client specifies the name of the file, the server should take care that this does not
+over-write some important file on its disk.&nbsp; 
+(Consider what happens if the client uploads a file called 
+<span class="codetext">server.c</span> !)</p>
+<p>A crude solution is to store all received files under one fixed name, such as 
+<span class="codetext">received.txt</span> or 
+<span class="codetext">uploaded.txt</span>.&nbsp;
+If the file is not a text file, you will have to rename it afterwards, 
+changing the extension to .pdf or .jpg as appropriate.&nbsp;
+A more elegant alternative would be to create a separate folder for all uploaded 
+files.&nbsp;
+Then the received files could be stored in that folder, with their original names.&nbsp;
+You could also restrict the client to downloading files from the same folder, 
+isolating the rest of the server from any action by the client.</p>
+
+<h3>Protocol Design</h3>
+<p>You may assume that the TCP connection provides a reliable transfer of an
+indefinite stream of bytes, in the correct order.&nbsp; 
+This means that you do not have to worry about errors, checksums, etc. - TCP takes
+care of that.</p>
+<p>However, if you ask TCP to send a block of bytes, you should not assume that 
+those bytes will be delivered in one block at the receiver - blocks may be split or
+joined in transit.&nbsp; 
+Most networks will deliver a block of up to 1400 bytes without splitting it, 
+but this is not guaranteed.</p>
+<p>Your protocol should not rely on block boundaries to identify different 
+parts of the conversation between client and server.</p>
+
+<p>One of the design questions is who sends first?&nbsp;
+In the example programs, the client sends a message, and the server responds.&nbsp;
+HTTP also works this way.&nbsp; 
+In some other Internet protocols, the server sends the first message, 
+prompting the client for a request.&nbsp;
+Either method should work...</p>
+<p>Some of the data that you transfer will be part of your protocol (header), 
+and some will be the content of the file - you need to devise some way to 
+distinguish between these.&nbsp; 
+A marker byte (or sequence of bytes) at the end of the
+header is probably the simplest approach - you need to choose something
+that will never occur in the header, but it does not matter if it
+occurs in the file content.&nbsp; 
+HTTP uses this method, but a simpler implementation is possible.</p>
+<p>You also need some way of knowing when the end of the file is reached.&nbsp; 
+The simplest option is probably to have the sender (which could be client
+or server) close the TCP connection when it reaches the end of the file.&nbsp;
+The receiver can detect when the connection is closed, and close the output file.</p>
+<p>A better method, used in HTTP, is to send the size of the file as part of the header,
+so the receiver knows in advance how many bytes it has to receive.&nbsp; 
+This would allow the connection to remain open for another transfer request.</p>
+<p>For information on file handling, including a method for finding the size 
+of a file, see the page on <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/file-handling.html">file handling</a>.&nbsp;
+There are examples in the program <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/file-demo.c">file-demo.c</a>.</p>
+
+<h4>Request format</h4>
+<p>Many Internet protocols, including HTTP, use requests
+and responses that are in plain text, with line endings.&nbsp;
+This is not particularly efficient, but it is convenient.&nbsp; 
+It means that the transactions can be read by a human without any conversion.&nbsp;
+It also means that the requests and responses will only
+contain a limited range of byte values, so it is easy to choose a
+marker byte that will never be used in a request or response.</p>
+<p> You may want to include a number, such as the size of a
+file, in your request or response.&nbsp; 
+To send a number as text, you can convert it to a string of characters, 
+then convert the characters back to a numerical value at the receiver.&nbsp; 
+For information on handling strings, including methods of converting 
+numbers to strings and back again, see the page on 
+<a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/string-conv.html">string handling</a>.&nbsp; 
+There are examples in the program <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/file-demo.c">file-demo.c</a>.</p>
+<p>The alternative is to split the number into its separate
+bytes, and send these in sequence through the TCP stream.&nbsp; 
+For example, if you have a 32-bit integer, you could split it into 4 bytes.&nbsp;
+You would have to decide which byte to send first, so that
+the receiver could re-assemble them in the correct order.&nbsp;
+These bytes could have any value from 0 to 255, so there
+would be no safe marker byte available.</p>
+<p>Another option, if you wanted to restrict the range of
+values, would be to break the 32-bit integer into 5 groups of 7 bits,
+according to an agreed rule.&nbsp; 
+These could then be sent as bytes through the TCP stream, but would only occupy half
+of the range of possible byte values, leaving the other half available for use as markers.</p>
+
+<h4>Response processing</h4>
+<p>If the client requests a file to be sent to it (download), the 
+response from the server will probably start with some status information,
+accepting or rejecting the request - maybe the file does not exist?&nbsp;
+This might be followed by more header information, such as the size of the file.&nbsp;
+When all the header information has been sent, there will be a marker of some sort
+to indicate the end of the header.&nbsp;
+This could be followed by the bytes making up the contents of the file.</p>
+<p>There are C functions to help you find a marker in an array of bytes, and to help
+break a string into separate pieces of information.&nbsp;
+See the page on <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/string-conv.html">string handling</a>.&nbsp; 
+There are examples in the program <a href="https://elearning.ucd.ie/bbcswebdav/pid-1148116-dt-content-rid-6207552_1/courses/EEEN20060/lab/file-demo.c">file-demo.c</a>.</p>
+<p>Similar issues will arise at the server, which has to extract information from
+the request that it receives from the client.&nbsp;
+In the case of an upload, it might also have to separate some header information 
+from the file contents.</p> 
+</td>
+</tr>
+</tbody>
+</table>
+</body></html>
