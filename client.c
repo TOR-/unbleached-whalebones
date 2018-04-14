@@ -14,15 +14,6 @@
 #include "CS_TCP.h"
 #include "application.h"
 
-typedef struct Response_t{
-	char * header;
-	char * body;
-}response_t;
-
-typedef struct{
-	char * name;
-	char * value;
-}Header;
 
 /* Mode-agnostic request construction */
 static int request(Mode_t mode, char **, char * );
@@ -39,14 +30,14 @@ static int (*mode_funs[])(char **, char *) = {gift, weasel};
 #define READ_ONLY "r"
 #define MAXRESPONSE 90
 
-#define HEADER_SEPARATOR ":"
-#define HEADER_TERMINATOR "\n"
+#define HEADER_SEPARATOR ':'
+#define HEADER_TERMINATOR '\n'
 #define STATUS_SEPARATOR " "
 #define STATUS_TERMINATOR "\n"
 
 FILE * file_parameters(char * filepath, long int *file_size);
 static char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
-char * extract_header(char * buf, Header * header, bool * finished);
+char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
 
 int main(int argc, char ** argv)
@@ -117,62 +108,71 @@ int main(int argc, char ** argv)
 			status_code, status_description);
 	// Extract headers
 	bool headers_finished = false;
-	Header ** headers, ** headers_tmp;
+	Header_array_t headers;
 	int n_headers;
+	init_header_array(&headers, HEADERINITBUFLEN);
+
 	char * last_term = pos; // Position of last HEADER_TERMINATOR found
+	int spaces = 0;
 	for(n_headers = 0; false == headers_finished && ret > 0;)
 	{
 		// Copy unprocessed data into beginning of responsebuf
 		// Receive <= (MAXRESPONSE - last_term) bytes, 
 		// Append to responsebuf
-		memmove(last_term + 1, responsebuf, MAXRESPONSE - (last_term - responsebuf));
-		ret = recv(sockfd, last_term, MAXRESPONSE - (last_term - responsebuf), 0);
-		printf("client:RECEIVED>>>%s<<<\n", responsebuf);
+
+		// Empty spaces to fill from last loop ( +1 for \n )
+		spaces = last_term - responsebuf + 1;
+		memmove(responsebuf, last_term + 1, MAXRESPONSE - spaces);
+		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
+		// TODO zero unused space in responsebuf
 		// find all headers in buffer
-		for(; false == headers_finished && NULL != pos; n_headers++)
+		for(pos = responsebuf; false == headers_finished && NULL != pos; n_headers++)
 		{
 			// headers not finished, header was found
-			headers_tmp = realloc(headers, sizeof(Header) * (1 + n_headers));
-			if(headers_tmp == NULL) // No complete header found in buffer
-			   continue;
-			headers = headers_tmp;
-			n_headers++;
-			last_term = pos;
-			pos = extract_header(pos + 1, headers[n_headers], &headers_finished);
+			//responsebuf = pos;
+			last_term = pos;//responsebuf;
+			pos = extract_header(pos, &headers, &headers_finished);
 		}
+
 	}
+	if(verbose) printf("client: finished receiveing headers.\n");
 	// Process headers
 	// 	Receive any data
 	
-
+	free_header_array(&headers);
 	free(filepath);
 	return EXIT_SUCCESS;
 }
 /* Populates fields in <header> with first header found in <buf>
- * Returns pointer to the end of the header or NULL if not found */
-char * extract_header(char * buf, Header * header, bool * finished)
+ * Returns pointer to the end of the header + 1 (skip \n) or NULL if not found */
+char * extract_header(char * buf, Header_array_t * header_array, bool * finished)
 {
 	char * sep = buf, * term = buf; // Position of substring in string
-	if(0 == strncmp(buf + 1, HEADER_TERMINATOR, 1))
+	Header header;
+	/*
+	if(0 == strncmp(buf, (char *)HEADER_TERMINATOR, 1))
+	*/
+	if(*buf == HEADER_TERMINATOR)
 	{
 		*finished = true;
 		return buf + 1;
 	}
-	if(NULL == (sep = strstr(buf, HEADER_SEPARATOR))
-			|| NULL == (term = strstr(buf, HEADER_TERMINATOR)))
+	if(NULL == (sep = strchr(buf, HEADER_SEPARATOR))
+			|| NULL == (term = strchr(buf, HEADER_TERMINATOR)))
 	{
 		fprintf(stderr, "extract_header: header not found in %s.\n", buf);
 		return NULL;
 	}
-	if(NULL == (header->name = strndup(buf, sep - buf))
-			|| NULL == (header->value = strndup(sep + 1, term - sep + 1)))
+	if(NULL == (header.name = strndup(buf, sep - buf))
+			|| NULL == (header.value = strndup(sep + 1, term - sep - 1)))
 	{
 		fprintf(stderr, "extract_header: no memory for header %s.\n", buf);
 		return NULL;
 	}
 	if(verbose) printf("extract_header: header %s read, value %s.\n",
-			header->name, header->value);
-	return term;
+			header.name, header.value);
+	insert_header_array(header_array, header);
+	return term + 1;
 }
 
 /* Extracts a status number and description from a buffer <buf> */

@@ -11,7 +11,30 @@
 #define NUM_HEADERS 3
 #define MAX_HEADER_SIZE 20
 
+#define HEADERINITBUFLEN 5
+
 bool verbose;
+
+typedef struct Response_t{
+	char * header;
+	char * body;
+}response_t;
+
+typedef struct{
+	char * name;
+	char * value;
+}Header;
+
+typedef struct {
+  Header *array;
+  size_t used;
+  size_t size;
+} Header_array_t;
+
+void init_header_array(Header_array_t *a, size_t initial);
+void insert_header_array(Header_array_t *a, Header element);
+void free_header_array(Header_array_t *a);
+
 
 typedef enum {GIFT, WEASEL} Mode_t;
 extern const char * mode_strs[];

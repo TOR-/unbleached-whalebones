@@ -124,3 +124,27 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 	
 	return EXIT_SUCCESS;
 }
+
+// TODO implement error checking here
+void init_header_array(Header_array_t *a, size_t initial) {
+  a->array = (Header *)malloc(initial * sizeof(Header));
+  a->used = 0;
+  a->size = initial;
+}
+
+void insert_header_array(Header_array_t *a, Header element) {
+  // a->used is the number of used entries, because a->array[a->used++] 
+  // updates a->used only *after* the array has been accessed.
+  // Therefore a->used can go up to a->size
+  if (a->used == a->size) {
+    a->size *= 2;
+    a->array = (Header *)realloc(a->array, a->size * sizeof(Header));
+  }
+  a->array[a->used++] = element;
+}
+
+void free_header_array(Header_array_t *a) {
+  free(a->array);
+  a->array = NULL;
+  a->used = a->size = 0;
+}
