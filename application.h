@@ -2,12 +2,13 @@
 #define APPLICATION_H
 #define READ_ONLY "r"
 #define DEBUG
-#define NETCAT
 
 #define END_HEAD ':'
 #define NUM_MODES 3
 #define NUM_HEADERS 3
 #define MAX_HEADER_SIZE 20
+#define DEC 10
+#define FOREVER for(;;)
 
 bool verbose;
 
