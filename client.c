@@ -18,7 +18,7 @@
 /* Mode-agnostic request construction */
 static int request(Mode_t mode, char **, char * );
 /* Response parser */
-//static int response(Mode_t mode, char *, char * );
+static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers);
 /* Mode-specific request construction */
 static int gift(char ** requestbuf, char * filepath);
 static int weasel(char ** requestbuf, char * filepath);
@@ -84,57 +84,10 @@ int main(int argc, char ** argv)
 	}
 	free(requestbuf);
 
-	char * responsebuf = (char *)malloc(MAXRESPONSE);
-	if(NULL == responsebuf)
-	{
-		fprintf(stderr, "client: failed to allocate memory for response.\n%s",
-				strerror(errno));
-		return EXIT_FAILURE;
-	}
-	// Receive response
-	char * pos; // Current position in response buffer
-	// Extract status
 	int status_code = 0;
 	char * status_description;
-	
-	memset(responsebuf, 0, MAXRESPONSE);
-	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
-	if(NULL == (pos = extract_status(responsebuf, &status_description, &status_code)))
-	{
-		fprintf(stderr, "client: failed to find a status in response.\n");
-		return EXIT_FAILURE;
-	}
-	if(verbose) printf("extract_status: response status \"%d %s\".\n",
-			status_code, status_description);
-	// Extract headers
-	bool headers_finished = false;
 	Header_array_t headers;
-	int n_headers;
-	init_header_array(&headers, HEADERINITBUFLEN);
-
-	char * last_term = pos; // Position of last HEADER_TERMINATOR found
-	int spaces = 0;
-	for(n_headers = 0; false == headers_finished && ret > 0;)
-	{
-		// Copy unprocessed data into beginning of responsebuf
-		// Receive <= (MAXRESPONSE - last_term) bytes, 
-		// Append to responsebuf
-
-		// Empty spaces to fill from last loop ( +1 for \n )
-		spaces = last_term - responsebuf + 1;
-		memmove(responsebuf, last_term + 1, MAXRESPONSE - spaces);
-		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
-		// TODO zero unused space in responsebuf
-		// find all headers in buffer
-		for(pos = responsebuf; false == headers_finished && NULL != pos; n_headers++)
-		{
-			// headers not finished, header was found
-			//responsebuf = pos;
-			last_term = pos;//responsebuf;
-			pos = extract_header(pos, &headers, &headers_finished);
-		}
-
-	}
+	response(sockfd, mode, filepath, &status_code, &status_description, &headers);
 	if(verbose) printf("client: finished receiveing headers.\n");
 	// Process headers
 	// 	Receive any data
@@ -199,7 +152,58 @@ char * extract_status(char * buf, char ** description, int *status_code)
 }
 /* Takes a response, block by block and parses it.
  * Extracts status code, status message, header names and values, and data */
-//static int response(Mode_t mode, char * responsebuf, char * filepath){return EXIT_SUCCESS;}
+static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers)
+{
+	int ret = -1;	
+	char * responsebuf = (char *)malloc(MAXRESPONSE);
+	if(NULL == responsebuf)
+	{
+		fprintf(stderr, "client: failed to allocate memory for response. %s\n",
+				strerror(errno));
+		return EXIT_FAILURE;
+	}
+	// Receive response
+	char * pos; // Current position in response buffer
+	// Extract status
+	
+	memset(responsebuf, 0, MAXRESPONSE);
+	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
+	if(NULL == (pos = extract_status(responsebuf, status_description, status_code)))
+	{
+		fprintf(stderr, "client: failed to find a status in response.\n");
+		return EXIT_FAILURE;
+	}
+	if(verbose) printf("extract_status: response status \"%d %s\".\n",
+			*status_code, *status_description);
+	// Extract headers
+	bool headers_finished = false;
+	int n_headers;
+	init_header_array(headers, HEADERINITBUFLEN);
+
+	char * last_term = pos; // Position of last HEADER_TERMINATOR found
+	int spaces = 0;
+	for(n_headers = 0; false == headers_finished && ret > 0;)
+	{
+		// Copy unprocessed data into beginning of responsebuf
+		// Receive <= (MAXRESPONSE - last_term) bytes, 
+		// Append to responsebuf
+
+		// Empty spaces to fill from last loop ( +1 for \n )
+		spaces = last_term - responsebuf + 1;
+		memmove(responsebuf, last_term + 1, MAXRESPONSE - spaces);
+		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
+		// TODO zero unused space in responsebuf
+		// find all headers in buffer
+		for(pos = responsebuf; false == headers_finished && NULL != pos; n_headers++)
+		{
+			// headers not finished, header was found
+			//responsebuf = pos;
+			last_term = pos;//responsebuf;
+			pos = extract_header(pos, headers, &headers_finished);
+		}
+	}
+	return EXIT_SUCCESS;
+}
 static int request(Mode_t mode, char ** requestbuf, char * filepath)
 {
 	// Add command to header
