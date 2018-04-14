@@ -257,11 +257,12 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
 
     (reqRx->filepath)[char_count] = NULLBYTE;
 
-    //Set index to beginning of header.
+    //Set index to first letter of header first header string.
     index += i + 1;
 
     #ifdef DEBUG
      printf("reqParse: Filepath is %s\n", (reqRx->filepath));
+     printf("reqParse: request[index] = %c\n", request[index]);
     #endif
 
     /*==================================================*/
@@ -278,7 +279,10 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //number of bytes to read in including null byte
     //Store this in char_count
     char_count = end_of_header - (request + index);
-    
+    //Incremenet index so it sits at header arg.
+    //+2 for ':' and ' '
+    index += char_count + 2;
+
     #ifdef DEBUG
      printf("reqParse: Printing %d number of bytes to header.\n", char_count);
     #endif
