@@ -199,6 +199,7 @@ int TCPcloseSocket (SOCKET socket2close)
     {
         socketCount--;  // decrement the socket counter
         printf("Socket closed, %d remaining\n", socketCount);
+		return EXIT_SUCCESS;
     }
 }  // end of TCPcloseSocket
 
