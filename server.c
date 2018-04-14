@@ -46,6 +46,14 @@ typedef struct req{
 } Request;
 
 int parse_request(Request *reqRx, Header *headerRx, char *request);
+/* request processign functions:
+ 
+int send_error_response(int status_code, SOCKET connectSocket);
+int gift(Request reqRx, Header headerRx, SOCKET connectSocket);
+int weasel(Request reqRx, Header headerRx, SOCKET connectSocket;
+int list(Request reqRx, Header headerRx, SOCKET connectSocket);
+ 
+*/
 
 int main()
 {
@@ -117,15 +125,10 @@ int main()
             printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
             
             //function to parse request[] and store values in structure
-            if( parse_request(&reqRx, &headerRx, request) != 0 )
-                fprintf(stderr, "Server: Unable to parse request received!");
+            retVal = parse_request(&reqRx, &headerRx, request);
             
-            //function to process requests
-            //...
-            /*Search request and see how server should respond.*/
-
-            // Check to see if the request contains the end marker
-            loc = memchr(request, ENDMARK, numRx);  // search the array
+            /* SHOULD WE HAVE A SIMPLE HEADER NAME TO MARK THE CLIENT ENDING CONNECTION?? */
+            *loc = memchr(request, ENDMARK, numRx);  // See if the request contains the end marker
             if (loc != NULL)  // end marker was found
             {
                 printf("Request contains end marker\n");
@@ -133,7 +136,29 @@ int main()
             }
 
         } // end of if data received
+    
 
+// ============== DECIDE RESPONSE ====================================
+        
+        if( retVal != 0)
+            send_error_response(retVal, connectSocket);
+        else
+        {
+            switch(reqRx.cmdRx)
+            {
+                case GIFT:
+                    retVal = gift(reqRx, headerRx, connectSocket);
+                    break;
+                case WEASEL:
+                    retVal = weasel(reqRx, headerRx, connectSocket;
+                    break;
+                case LIST:
+                    retVal = list(reqRx, headerRx, connectSocket);
+                    break;
+            }
+        }
+       
+       
     } // end of while loop
 
 
@@ -195,9 +220,6 @@ int main()
     TCPcloseSocket(listenSocket);
     return 0;
 }
-
-
-
 
 
 /*Takes a request, parses the data within and stores the data within
@@ -320,6 +342,60 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //====================================================
     return 0;
 }
+                                    
+
+int send_error_response(int status_code, SOCKET connectSocket){
+	
+	
+
+
+
+
+}
+							
+int gift(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+
+
+
+
+}
+
+int weasel(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+
+
+
+
+}
+
+
+int list(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
