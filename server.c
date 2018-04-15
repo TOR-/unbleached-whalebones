@@ -127,13 +127,7 @@ int main()
             //function to parse request[] and store values in structure
             retVal = parse_request(&reqRx, &headerRx, request);
             
-            /* SHOULD WE HAVE A SIMPLE HEADER NAME TO MARK THE CLIENT ENDING CONNECTION?? */
-            *loc = memchr(request, ENDMARK, numRx);  // See if the request contains the end marker
-            if (loc != NULL)  // end marker was found
-            {
-                printf("Request contains end marker\n");
-                stop = 1;   // set the flag to end the loop
-            }
+
 
         } // end of if data received
     
@@ -320,15 +314,15 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
             switch(i)
             {
                 case DATA_L:
-                    //headerRx.data_length = atoi(header_value);
+                    headerRx->data_length = atoi(header_value);
                     valid = true;
                     break;
                 case TIMEOUT:
-                    //headerRx.timeout = atoi(header_value);
+                    headerRx->timeout = atoi(header_value);
                     valid = true;
                     break;
                 case IF_EXISTS:
-                    //headerRx.timeout = header_value;
+                    headerRx->timeout = header_value;
                     valid = true;
                     break;
             }
