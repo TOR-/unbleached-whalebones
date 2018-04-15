@@ -133,7 +133,7 @@ int main()
     
 
 // ============== DECIDE RESPONSE ====================================
-        
+        /*
         if( retVal != 0)
             send_error_response(retVal, connectSocket);
         else
@@ -151,7 +151,7 @@ int main()
                     break;
             }
         }
-       
+        */
        
     } // end of while loop
 
@@ -314,15 +314,15 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
             switch(i)
             {
                 case DATA_L:
-                    headerRx->data_length = atoi(header_value);
+                    //headerRx->data_length = atoi(header_value);
                     valid = true;
                     break;
                 case TIMEOUT:
-                    headerRx->timeout = atoi(header_value);
+                    //headerRx->timeout = atoi(header_value);
                     valid = true;
                     break;
                 case IF_EXISTS:
-                    headerRx->timeout = header_value;
+                    //headerRx->timeout = header_value;
                     valid = true;
                     break;
             }
@@ -333,7 +333,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     return 0;
 }
                                     
-
+/*
 int send_error_response(int status_code, SOCKET connectSocket){
 	
 	
@@ -368,7 +368,7 @@ int list(Request reqRx, Header headerRx, SOCKET connectSocket){
 
 
 }
-
+*/
 
 
 
