@@ -46,6 +46,14 @@ typedef struct req{
 } Request;
 
 int parse_request(Request *reqRx, Header *headerRx, char *request);
+/* request processign functions:
+ 
+int send_error_response(int status_code, SOCKET connectSocket);
+int gift(Request reqRx, Header headerRx, SOCKET connectSocket);
+int weasel(Request reqRx, Header headerRx, SOCKET connectSocket;
+int list(Request reqRx, Header headerRx, SOCKET connectSocket);
+ 
+*/
 
 int main()
 {
@@ -117,24 +125,36 @@ int main()
             printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
             
             //function to parse request[] and store values in structure
-            if( parse_request(&reqRx, &headerRx, request) != 0 )
-                fprintf(stderr, "Server: Unable to parse request received!");
+            retVal = parse_request(&reqRx, &headerRx, request);
             
-            //function to process requests
-            //...
-            /*Search request and see how server should respond.*/
 
-            // Check to see if the request contains the end marker
-            loc = memchr(request, ENDMARK, numRx);  // search the array
-            if (loc != NULL)  // end marker was found
-            {
-                printf("Request contains end marker\n");
-                stop = 1;   // set the flag to end the loop
-            }
 
         } // end of if data received
+    
 
+// ============== DECIDE RESPONSE ====================================
+        /*
+        if( retVal != 0)
+            send_error_response(retVal, connectSocket);
+        else
+        {
+            switch(reqRx.cmdRx)
+            {
+                case GIFT:
+                    retVal = gift(reqRx, headerRx, connectSocket);
+                    break;
+                case WEASEL:
+                    retVal = weasel(reqRx, headerRx, connectSocket;
+                    break;
+                case LIST:
+                    retVal = list(reqRx, headerRx, connectSocket);
+                    break;
+            }
+        }
+        */
+       
     } // end of while loop
+    //numRx = recv(connectSocket, request, MAXREQUEST, 0);
 
 
 // ============== SEND RESPONSE ======================================
@@ -207,7 +227,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     int index = 0; // current location within request[]
     int char_count = 0; // counts length of current substring
     int i = 0; //general loop counter
-    int end = 0; //flags end of header
+    bool end = 0; //flags end of header
     char headbuff[MAX_HEADER_SIZE]; //Create array to read in each header value
     char * cmdbuff; //Buffer to store command and filepath
     char * end_of_header; //Pointer used to store position of end of header
@@ -265,10 +285,11 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
      printf("reqParse: Filepath is %s\n", (reqRx->filepath));
      printf("reqParse: request[index] = %c\n", request[index]);
     #endif
-    
-    for(char_count = 0;;char_count = 0)
+
+    while(end == false)
     {
-        //strstr returns pointer to first ':' found after ip str
+        char_count = 0;
+        //strchr returns pointer to first ':' found after ip str
         //In this case, we only want to the value before ':'
         end_of_header = strchr((request + index), (int)END_HEAD);
         //Subtracting position of final byte from first byte gives
@@ -295,6 +316,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         //Tests for invalid header
         //Loop runs for each possible iteration of i + 1 for
         //an invalid iteration.
+        //RETURN POINTER TO LAST '\N' AND CHECK FOR FILE IN MAIN
         for(i = 0, valid = false; i < NUM_HEAD + 1; i++)
             if(!strcmp(headbuff, header_name[i]))
             {
@@ -306,7 +328,6 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                         //Need to read number here
                         (headerRx->data_length) = strtol((request + index), NULL, DEC);
                         //Index is now at next header value
-                        printf("reqParse: req[index] is %c\n", request[index]);
                         index += char_count + 1;
                         valid = true;
                         
@@ -315,8 +336,8 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                         printf("reqParse: Input is valid == %d\n", valid);
                         printf("reqParse: req[index] is %c\n", request[index]);
                         #endif
-
                         break;
+
                     case TIMEOUT:
                         //Count amount of char in header value
                         for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
@@ -329,11 +350,24 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                         #ifdef DEBUG
                         printf("reqParse: Timeout is %ld bytes\n", (headerRx->timeout));
                         printf("reqParse: Input is valid == %d\n", valid);
+                        printf("reqParse: req[index] is %c\n", request[index]);
                         #endif
                         break;
+
                     case IF_EXISTS:
-                        //headerRx.timeout = header_value;
+                        //Count amount of char in header value
+                        for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
+                        //Need to read number here
+                        (headerRx->ifexist) = strtol((request + index), NULL, DEC);
+                        //Index is now at beginning of next header value
+                        index += char_count + 1;
                         valid = true;
+
+                        #ifdef DEBUG
+                        printf("reqParse: If-exists is %ld bytes\n", (headerRx->ifexist));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        printf("reqParse: req[index] is %c\n", request[index]);
+                        #endif
                         break;
                     case default;
                         valid = false;
@@ -346,11 +380,64 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         if(request[index + 1] == '\n')
         {
             printf("reqParse: End of headers. Nothing left to process\n");
-
-        }
+            end = true;
         }
     return 0;
 }
+                                    
+/*
+int send_error_response(int status_code, SOCKET connectSocket){
+	
+	
+
+
+
+
+}
+							
+int gift(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+use recv funvtion with FILE * as argument
+
+
+
+}
+
+int weasel(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+
+
+
+
+}
+
+
+int list(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+
+
+
+
+
+}
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
