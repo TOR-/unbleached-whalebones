@@ -84,10 +84,7 @@ FILE *file_parameters(const char *filepath,long int *size_of_file)
 
 //Function to append the data to the request
 int append_data(FILE* input_file, char** request_buf, long int size_of_file)
-{
-	int check_for_end = 0;
-	size_t line_length = 0;
-	
+{	
 	long int header_length = strlen(*request_buf);
 	
 	char* data = (char *) malloc(size_of_file);
@@ -105,7 +102,7 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 	}
 	
 	//Read in data from the file
-	check_for_end = fread(data,1,size_of_file,input_file);
+	fread(data,1,size_of_file,input_file);
 	strcat(*request_buf,data);
 	
 	if(data == NULL)
