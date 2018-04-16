@@ -345,7 +345,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                 }
             }
         //Check for invalid input
-        if(!valid); //return appropriate error code
+        if(!valid) printf("reqParse: Input is shite\n"); //return appropriate error code
         //Check to see if header is final one.
         if(request[index + 1] == '\n')
         {
