@@ -304,7 +304,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     //Read in value as string
     //+================================================
     #ifdef DEBUG
-     printf("reqParse: Header n is %s\n", headbuff);
+     printf("reqParse: Header namegit is %s\n", headbuff);
     #endif
     //Now compare header and assign enum
     //Tests for invalid header
