@@ -284,11 +284,10 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
      printf("reqParse: Filepath is %s\n", (reqRx->filepath));
      printf("reqParse: request[index] = %c\n", request[index]);
     #endif
-    
-    char_count = 0;
 
     while(end == false)
     {
+        char_count = 0;
         //strchr returns pointer to first ':' found after ip str
         //In this case, we only want to the value before ':'
         end_of_header = strchr((request + index), (int)END_HEAD);
@@ -305,7 +304,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         headbuff[char_count] = NULLBYTE;
         //Incremenet index so it sits at header arg.
         //+2 for ':' and ' '
-        index += char_count + 2;
+        index += char_count + 1;
         //Now need to read header value and increment index
         //Read in value as string
         //+================================================
@@ -334,8 +333,8 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                         printf("reqParse: Input is valid == %d\n", valid);
                         printf("reqParse: req[index] is %c\n", request[index]);
                         #endif
-
                         break;
+
                     case TIMEOUT:
                         //Count amount of char in header value
                         for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
@@ -351,6 +350,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                         printf("reqParse: req[index] is %c\n", request[index]);
                         #endif
                         break;
+
                     case IF_EXISTS:
                         //Count amount of char in header value
                         for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
