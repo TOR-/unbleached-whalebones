@@ -32,12 +32,6 @@
 #define ENDMARK 10         // the newline character
 #define NULLBYTE '\0'
 
-typedef struct head{ // Should members be character types?? Change before/after?
-    int  data_length;
-    int timeout ;
-    //Change to enum
-    char *ifexist;
-} Header;
 
 typedef struct req{
     Mode cmdRx;

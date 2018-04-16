@@ -20,23 +20,30 @@ typedef struct Response_t{
 	char * body;
 }response_t;
 
+typedef struct head{ // Should members be character types?? Change before/after?
+    int  data_length;
+    int timeout ;
+    //Change to enum
+    char *ifexist;
+} Header;
+
 typedef struct{
 	char * name;
 	char * value;
-}Header;
+}Header_t;
 
 typedef struct {
-  Header *array;
+  Header_t *array;
   size_t used;
   size_t size;
 } Header_array_t;
 
 void init_header_array(Header_array_t *a, size_t initial);
-void insert_header_array(Header_array_t *a, Header element);
+void insert_header_array(Header_array_t *a, Header_t element);
 void free_header_array(Header_array_t *a);
 
 
-typedef enum {GIFT, WEASEL} Mode_t;
+typedef enum {GIFT, WEASEL, LIST} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
 typedef enum h_name { DATA_L, TIMEOUT, IF_EXISTS} H_name;

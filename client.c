@@ -20,13 +20,18 @@ static int request(Mode_t mode, char **, char * );
 /* Response parser */
 static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers);
 /* Mode-specific request construction */
-static int gift(char ** requestbuf, char * filepath);
-static int weasel(char ** requestbuf, char * filepath);
-/* Array of pointers to mode-specific operation functions */
-static int (*mode_funs[])(char **, char *) = {gift, weasel};
+int gift_request(char ** requestbuf, char * filepath);
+int weasel_request(char ** requestbuf, char * filepath);
+int list_request(char ** requestbuf, char * filepath);
+int (*mode_request_funs[])(char **, char *) = {gift_request, weasel_request, list_request};
+
+int gift_response(char * remainder, SOCKET sockfd, char * filepath);
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath);
+int list_response(char * remainder, SOCKET sockfd, char * filepath);
+int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath) = {gift_response, weasel_response, list_response};
 
 #define IPV4LEN 12
-#define OPTSTRING "vqg:w:hi:p:"
+#define OPTSTRING "vqg:w:l:hi:p:"
 #define READ_ONLY "r"
 #define MAXRESPONSE 90
 
@@ -36,7 +41,7 @@ static int (*mode_funs[])(char **, char *) = {gift, weasel};
 #define STATUS_TERMINATOR "\n"
 
 FILE * file_parameters(char * filepath, long int *file_size);
-static char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
+char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
 
@@ -89,19 +94,27 @@ int main(int argc, char ** argv)
 	Header_array_t headers;
 	response(sockfd, mode, filepath, &status_code, &status_description, &headers);
 	if(verbose) printf("client: finished receiveing headers.\n");
-	// Process headers
-	// 	Receive any data
-	
+	// Check mode to see if there should be data ( WEASEL )
+	// 	Process headers
+	//		search headers for data-length header	
+	//		if present: 
+	// 			Receive any data
+	// Otherwise, we're
 	free_header_array(&headers);
 	free(filepath);
 	return EXIT_SUCCESS;
 }
+
+/* =========================================================================
+ * Utility functions for processing responses from the server
+ * ========================================================================= */
+
 /* Populates fields in <header> with first header found in <buf>
  * Returns pointer to the end of the header + 1 (skip \n) or NULL if not found */
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished)
 {
 	char * sep = buf, * term = buf; // Position of substring in string
-	Header header;
+	Header_t header;
 	/*
 	if(0 == strncmp(buf, (char *)HEADER_TERMINATOR, 1))
 	*/
@@ -131,9 +144,6 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 /* Extracts a status number and description from a buffer <buf> */
 char * extract_status(char * buf, char ** description, int *status_code)
 {
-	static bool status_found = false;
-	if(status_found) return buf;
-
 	char * sep = buf, * term = buf;
 	if(NULL == (sep = strstr(buf, STATUS_SEPARATOR))
 			|| NULL == (term = strstr(buf, STATUS_TERMINATOR)))
@@ -147,9 +157,13 @@ char * extract_status(char * buf, char ** description, int *status_code)
 		return NULL;
 	}
 	*status_code = atoi(strtok(buf, STATUS_SEPARATOR));
-	status_found = true;
 	return term;
 }
+
+/* ==========================================================================
+ * Client processing of the response from the server
+ * ========================================================================== */
+
 /* Takes a response, block by block and parses it.
  * Extracts status code, status message, header names and values, and data */
 static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers)
@@ -204,6 +218,23 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_cod
 	}
 	return EXIT_SUCCESS;
 }
+
+int gift_response(char * remainder, SOCKET sockfd, char * filepath)
+{
+	return EXIT_SUCCESS;
+}
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
+{
+	return EXIT_SUCCESS;
+}
+int list_response(char * remainder, SOCKET sockfd, char * filepath)
+{
+	return EXIT_SUCCESS;
+}
+/* ===========================================================================
+ * Construction of the request to the server in a character buffer
+ * =========================================================================== */
+
 static int request(Mode_t mode, char ** requestbuf, char * filepath)
 {
 	// Add command to header
@@ -224,7 +255,7 @@ static int request(Mode_t mode, char ** requestbuf, char * filepath)
 	append_header(requestbuf, "Date", "2018-04-07T14:31:32Z");
 
 	// Call individual request constructors
-	if(0 != mode_funs[mode](requestbuf, filepath))
+	if(0 != mode_request_funs[mode](requestbuf, filepath))
 	{
 		fprintf(stderr, "request: error in processing %s request.\n", mode_strs[mode]);
 		return EXIT_FAILURE;
@@ -234,15 +265,20 @@ static int request(Mode_t mode, char ** requestbuf, char * filepath)
 }
 
 /* Appends weasel-specific headers to request in *requestbuf */
-static int weasel(char ** requestbuf, char * filepath)
+int weasel_request(char ** requestbuf, char * filepath)
 {
 	// How many headers?
-	// None?
+	finish_headers(requestbuf);
+	return 0;
+}
+int list_request(char ** requestbuf, char * filepath)
+{
+	// How many headers?
 	finish_headers(requestbuf);
 	return 0;
 }
 
-static int gift(char ** requestbuf, char * filepath)
+int gift_request(char ** requestbuf, char * filepath)
 {
 	FILE *input_file;
 	long int size_of_file;
@@ -269,8 +305,8 @@ static int gift(char ** requestbuf, char * filepath)
 	return EXIT_SUCCESS;
 }
 
-
-static char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port)
+/* ========================= INPUT PROCESSING ================================*/
+char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port)
 {
 	char optc; // Option character
 	int opti = 0; // Index into option array
@@ -284,6 +320,7 @@ static char * process_input(int argc, char ** argv, int * mode, char * ip, uint1
 			{"quiet",	no_argument, 		0,	'q'},
 			{"gift",	required_argument,	0,	'g'},
 			{"weasel",	required_argument,	0,	'w'},
+			{"list",	required_argument,	0,	'l'},
 			{"help",	no_argument,		0,	'h'},
 			{"ip",		required_argument,	0,	'i'},
 			{"port",	required_argument,	0,	'p'}
@@ -327,6 +364,17 @@ static char * process_input(int argc, char ** argv, int * mode, char * ip, uint1
 				}
 				strcpy(filepath, optarg);
 				*mode = WEASEL;
+				break;
+			case 'l':
+				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
+				{
+					fprintf(stderr,
+							"client: memory not available for filepath %s\n",
+							(char *) optarg);
+					exit(EXIT_FAILURE);
+				}
+				strcpy(filepath, optarg);
+				*mode = LIST;
 				break;
 			case 'i':
 				strcpy(ip, optarg);

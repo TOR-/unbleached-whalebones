@@ -4,7 +4,7 @@
 
 #include "application.h"
 
-const char * mode_strs[] = {"GIFT", "WEASEL"};
+const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
 const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
 
 /* Appends a header to a <LF> separated list of headers
@@ -60,7 +60,7 @@ int finish_headers(char ** headers)
 FILE *file_parameters(char *filepath, long int *size_of_file)
 {
 	FILE* input_file;
-	
+
 	if( ( input_file = fopen(filepath, READ_ONLY) )== NULL )
 	{
 		if(verbose)
@@ -80,10 +80,10 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 			perror("Error in file_parameters: File size is less than zero: ");
 			return NULL;
 		}
-		
+
 		rewind(input_file);
 	}
-	
+
 	return input_file;
 }
 
@@ -91,25 +91,25 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 {	
 	long int header_length = strlen(*request_buf);
-	
+
 	char* data = (char *) malloc(size_of_file);
 	if(data == NULL)
 	{
 		perror("Error appending data: ");
 		return EXIT_FAILURE;
 	}
-		//Reallocate memory to account for the headers
+	//Reallocate memory to account for the headers
 	*request_buf = (char *) realloc(*request_buf, size_of_file + header_length);
 	if(request_buf == NULL)
 	{
 		perror("Error appending data: ");
 		return EXIT_FAILURE;
 	}
-	
+
 	//Read in data from the file
 	fread(data,1,size_of_file,input_file);
 	strcat(*request_buf,data);
-	
+
 	if(data == NULL)
 	{
 		printf("Error in reading the file");
@@ -118,30 +118,30 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 
 	free(data);
 	return 0;
-	
+
 	return EXIT_SUCCESS;
 }
 
 // TODO implement error checking here
 void init_header_array(Header_array_t *a, size_t initial) {
-  a->array = (Header *)malloc(initial * sizeof(Header));
-  a->used = 0;
-  a->size = initial;
+	a->array = (Header_t *)malloc(initial * sizeof(Header_t));
+	a->used = 0;
+	a->size = initial;
 }
 
-void insert_header_array(Header_array_t *a, Header element) {
-  // a->used is the number of used entries, because a->array[a->used++] 
-  // updates a->used only *after* the array has been accessed.
-  // Therefore a->used can go up to a->size
-  if (a->used == a->size) {
-    a->size *= 2;
-    a->array = (Header *)realloc(a->array, a->size * sizeof(Header));
-  }
-  a->array[a->used++] = element;
+void insert_header_array(Header_array_t *a, Header_t element) {
+	// a->used is the number of used entries, because a->array[a->used++] 
+	// updates a->used only *after* the array has been accessed.
+	// Therefore a->used can go up to a->size
+	if (a->used == a->size) {
+		a->size *= 2;
+		a->array = (Header_t *)realloc(a->array, a->size * sizeof(Header_t));
+	}
+	a->array[a->used++] = element;
 }
 
 void free_header_array(Header_array_t *a) {
-  free(a->array);
-  a->array = NULL;
-  a->used = a->size = 0;
+	free(a->array);
+	a->array = NULL;
+	a->used = a->size = 0;
 }
