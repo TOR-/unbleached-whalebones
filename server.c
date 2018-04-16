@@ -21,31 +21,18 @@
 #include <netdb.h>
 #include <stdbool.h>
 #include "application.h"
-#include "application.c"
 
 #include "CS_TCP.h"
-#include "CS_TCP.c"
 
 #define SERVER_PORT 6666  // port to be used by the server
 #define MAXREQUEST 64      // size of request array, in bytes
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
-#define NULLBYTE '\0'
-
-typedef struct head{ // Should members be character types?? Change before/after?
-    long int  data_length;
-    long int timeout ;
-    //Change to enum
-    char *ifexist;
-} Header;
-
-typedef struct req{
-    Mode cmdRx;
-    char *filepath;
-    Header *header;
-} Request;
 
 int parse_request(Request *reqRx, Header *headerRx, char *request);
+//char * check_parse_error(int error, char * err_msg);
+
+//char * check_parse_error(int error, char * err_msg)
 /* request processign functions:
  
 int send_error_response(int status_code, SOCKET connectSocket);
@@ -66,11 +53,10 @@ int main()
     int numRx = 0;      // number of bytes received
     int numResp;        // number of bytes in response string
     int stop = 0;       // flag to control the loop
-    char * loc = NULL;          // location of character
     char request[MAXREQUEST+1];   // array to hold request from client
     char response[MAXRESPONSE+1]; // array to hold our response
-    char welcome[] = "Welcome to the Communication Systems server.";
-    char goodbye[] = "Goodbye, and thank you for using the server. ###";
+    char welcome[] = "Welcome to the server\n";
+    char goodbye[] = "Welcome to the server\n";
 
 // ============== SERVER SETUP ===========================================
 
@@ -112,7 +98,7 @@ int main()
             printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
             stop = 1;   // set the flag to end the loop
         }
-        else if (numRx == 0)  // indicates connection closing (but not an error)
+        else if (0 == numRx)  // indicates connection closing (but not an error)
         {
             printf("Connection closed by client\n");
             stop = 1;   // set the flag to end the loop
@@ -125,40 +111,15 @@ int main()
             printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
             
             //function to parse request[] and store values in structure
-            retVal = parse_request(&reqRx, &headerRx, request);
-            
-
-
-        } // end of if data received
-    
-
-// ============== DECIDE RESPONSE ====================================
-        /*
-        if( retVal != 0)
-            send_error_response(retVal, connectSocket);
-        else
-        {
-            switch(reqRx.cmdRx)
-            {
-                case GIFT:
-                    retVal = gift(reqRx, headerRx, connectSocket);
-                    break;
-                case WEASEL:
-                    retVal = weasel(reqRx, headerRx, connectSocket;
-                    break;
-                case LIST:
-                    retVal = list(reqRx, headerRx, connectSocket);
-                    break;
+            if((retVal = parse_request(&reqRx, &headerRx, request)) == 0)
+                printf("All good\n");
+            else{
+                printf("Error: Invalid error returned by parse_request\n");
             }
-        }
-        */
-       
-    } // end of while loop
-    //numRx = recv(connectSocket, request, MAXREQUEST, 0);
 
 
-// ============== SEND RESPONSE ======================================
-
+        } 
+    }
     // If we received a request, then we send a response
     if (numRx > 0)
     {
@@ -216,13 +177,30 @@ int main()
     return 0;
 }
 
-
-
-
-
 /*Takes a request, parses the data within and stores the data within
 in useful formats within a struct for processing*/
-int parse_request(Request *reqRx, Header *headerRx, char *request){
+int parse_request(Request *reqRx, Header *headerRx, char *request)
+{
+    int retVal;
+
+    if(!parse_command(request, &(reqRx->cmdRx)))
+    {
+        perror("parse req: Invalid command\n");
+        return 0;
+    }
+    //Switch case for all problems
+    parse_filepath(request, (reqRx->filepath));
+
+    while(!(retVal = parse_header(request, headerRx)))
+        if(retVal > 1) printf("Parse Req: Error\n");
+    
+    return 0;
+    //send error
+}
+
+
+
+/*int parse_request(Request *reqRx, Header *headerRx, char *request){
 
     int index = 0; // current location within request[]
     int char_count = 0; // counts length of current substring
@@ -231,7 +209,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     char headbuff[MAX_HEADER_SIZE]; //Create array to read in each header value
     char * cmdbuff; //Buffer to store command and filepath
     char * end_of_header; //Pointer used to store position of end of header
-    bool valid; //Boolean variable used to flag invalid input
+    bool valid; //flag invalid input
     
     //retrieve request 'command'
     while(request[index++] != ' ')
@@ -240,7 +218,8 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
 
     //Allocate memory for command and leave space for NULLBYTE
     //to store as string
-    cmdbuff = (char *)malloc((char_count + 1)*sizeof(char));
+    if(cmdbuff = (char *)malloc((char_count + 1)*sizeof(char)) == NULL)
+        return -1;
     
     //Store command as temporary string
     for(i=0; i<char_count; i++)
@@ -256,10 +235,6 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
             (reqRx->cmdRx) = i;
             valid = true;
         }
-    //Return appropriate error code.
-    /*
-    if(!valid) return ______;
-    */
 
     #ifdef DEBUG
     printf("reqParse: valid == %d\n", valid);
@@ -375,16 +350,24 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                 }
             }
         //Check for invalid input
-        if(!valid) printf("reqParse: Input is shite\n"); //return appropriate error code
+        //if(!valid) printf("reqParse: Input is shite\n"); //return appropriate error code
         //Check to see if header is final one.
-        if(request[index + 1] == '\n')
-        {
-            printf("reqParse: End of headers. Nothing left to process\n");
-            end = true;
+        if(!valid){
+            printf("reqParse: Bad header values\n");
+            //return error
+        }else{
+            if(request[index + 1] == '\n')
+            {
+                printf("reqParse: End of headers. Nothing left to process\n");
+                //Assign data position pointer value of last header byte
+                (headerRx->data_pos) = request[index + 1];
+                end = true;
+            }
         }
+
     return 0;
 }
-                                    
+*/                                    
 /*
 int send_error_response(int status_code, SOCKET connectSocket){
 	

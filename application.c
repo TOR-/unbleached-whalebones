@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "application.h"
 
 /* Appends a header to a <LF> separated list of headers
  * appends <name>:<content>\n
@@ -115,4 +116,142 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 	return 0;
 	
 	return EXIT_SUCCESS;
+}
+//Returns true for valid command, 0 for invalid.
+//Sets cmdRx to mode of operation. Stores filepath.
+//Increments buff to next alphanumeric character.
+bool parse_command(char * buff, Mode * cmdRx)
+{
+	int count;
+	char * cmdbuff;
+	bool valid;
+	
+	for(count = 0; buff[count++] != ' ';)
+
+	if(NULL == (cmdbuff = (char *)malloc((count + 1)*sizeof(char))))
+    {
+		perror("parse command: Error allocating memory\n");    
+		exit(EXIT_FAILURE);	
+	}
+
+	int i;
+	for(i = 0; i < count; i++)
+        cmdbuff[i] = buff[i];
+	
+	cmdbuff[count] = NULLBYTE;
+
+	for(i = 0, valid = false; i < NUM_MODES; i++)
+        if(!strcmp(cmdbuff, mode_strs[i]))
+        {
+            * cmdRx = i;
+            valid = true;
+        }
+	
+	buff += count;
+	
+	return valid;
+} 
+
+int parse_filepath(char * buff, char * filepath)
+{
+	int count;
+	for(count = 0; buff[count++] != '\n';)
+
+	if(NULL == (filepath = (char *)malloc((count + 1)*sizeof(char))))
+	{
+		perror("parse filepath: Error allocating memory\n");    
+		exit(EXIT_FAILURE);	
+	}
+	
+	for(int i = 0; i < count; i++)
+        filepath[i] = buff[i];
+
+    filepath[count] = NULLBYTE;
+
+	buff += count + 1;
+
+	return 0;
+
+}
+
+int parse_header(char * buff, Header * head)
+{
+	int count = 0;
+	bool valid;
+	char headbuff[MAX_HEADER_SIZE];
+
+	for(count = 0; buff[count++] != ':';)
+
+	strncpy(headbuff, buff, count);
+	headbuff[count] = NULLBYTE;
+
+	buff += count + 1;
+
+	for(int i = 0, valid = false; i < NUM_HEAD + 1; i++)
+            if(!strcmp(headbuff, header_name[i]))
+            {
+                switch(i)
+                {
+                    case DATA_L:
+                        //Count amount of char in header value
+                        for(count = 0; buff[count++] != '\n';)    
+                        //Need to read number here
+                        (head->data_length) = strtol(buff, NULL, DEC);
+                        //Index is now at next header value
+						buff += count + 1;
+                        valid = true;
+                        
+                        #ifdef DEBUG
+                        printf("reqParse: Data length is %ld bytes\n", (head->data_length));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        #endif
+
+                        break;
+
+                    case TIMEOUT:
+                        //Count amount of char in header value
+                        for(count = 0; buff[count++] != '\n';)    
+                        //Need to read number here
+                        (head->timeout) = strtol(buff, NULL, DEC);
+                        //Index is now at beginning of next header value
+                        buff += count + 1;
+                        valid = true;
+                        
+                        #ifdef DEBUG
+                        printf("reqParse: Timeout is %ld bytes\n", (head->timeout));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        #endif
+                        break;
+
+                    case IF_EXISTS:
+                        //Count amount of char in header value
+                        for(count = 0; buff[count++] != '\n';)    
+                        //Need to read number here
+                        //(head->ifexist) = strtol(buff, NULL, DEC);
+                        //Index is now at beginning of next header value
+                        buff += count + 1;
+                        valid = true;
+
+                        #ifdef DEBUG
+                        //printf("reqParse: If-exists is %ld bytes\n", (head->ifexist));
+                        //printf("reqParse: Input is valid == %d\n", valid);
+                        #endif
+                        break;
+                }
+            }
+        if(!valid){
+            perror("head parse: Bad header value\n");
+            //return error
+        }else{
+            if(buff[1] == '\n')
+            {
+                printf("reqParse: End of headers. Nothing left to process\n");
+                //Assign data position pointer value of last header byte
+                //Buffer is now at beginning of data
+				buff++;
+				return 0;
+            } 
+		
+        }
+	return 1;
 }
