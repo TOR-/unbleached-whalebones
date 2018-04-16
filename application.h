@@ -7,7 +7,7 @@
 #define NUM_MODES 3
 #define NUM_HEAD (sizeof(header_name)/sizeof(*header_name) )
 #define MAX_HEADER_SIZE 20
-#define DEC 10
+#define DEC 10  //Number base for use with strtol
 
 bool verbose;
 
