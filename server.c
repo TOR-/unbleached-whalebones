@@ -270,7 +270,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
      printf("reqParse: request[index] = %c\n", request[index]);
     #endif
     
-    for(char_count = 0; ; )
+    for(char_count = 0;;char_count = 0)
     {
         //strstr returns pointer to first ':' found after ip str
         //In this case, we only want to the value before ':'
@@ -287,8 +287,8 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         strncpy(headbuff, (request + index), char_count);
         headbuff[char_count] = NULLBYTE;
         //Incremenet index so it sits at header arg.
-        //+2 for ':' and ' '
-        index += char_count + 2;
+        //+1 for ':'
+        index += char_count + 1;
         //Now need to read header value and increment index
         //Read in value as string
         //+================================================
@@ -297,8 +297,9 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
         #endif
         //Now compare header and assign enum
         //Tests for invalid header
-        
-        for(i = 0, valid = false; i < NUM_HEADERS; i++)
+        //Loop runs for each possible iteration of i + 1 for
+        //an invalid iteration.
+        for(i = 0, valid = false; i < NUM_HEAD + 1; i++)
             if(!strcmp(headbuff, header_name[i]))
             {
                 switch(i)
@@ -338,21 +339,20 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
                         //headerRx.timeout = header_value;
                         valid = true;
                         break;
+                    case default;
+                        valid = false;
+                        break;
                 }
             }
         //Check for invalid input
         if(!valid); //return appropriate error code
         //Check to see if header is final one.
-        if(request[index + 1] == '\n') 
+        if(request[index + 1] == '\n')
         {
             printf("reqParse: End of headers. Nothing left to process\n");
-            break;
+
         }
-    }
-    printf("\n\nReached end of loop.\n\n");
-    //Return appropriate error code
-    /*if(!valid) return _______;*/
-    //====================================================
+        }
     return 0;
 }
 
