@@ -14,56 +14,47 @@
 #include "CS_TCP.h"
 #include "application.h"
 
-typedef struct Response_t{
-	char * header;
-	char * body;
-}response_t;
-
-typedef struct{
-	char * name;
-	char * value;
-}Header;
 
 /* Mode-agnostic request construction */
-static int request(enum Mode, char **, const char *);
+static int request(Mode_t mode, char **, char * );
 /* Response parser */
-static int response(enum Mode, char *, const char *);
+static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers);
 /* Mode-specific request construction */
-static int gift(char ** requestbuf, const char * filepath);
-static int weasel(char ** requestbuf, const char * filepath);
-static int list(char ** requestbuf, const char * filepath);
-/* Array of pointers to mode-specific operation functions */
-static int (*mode_funs[])(char **, const char *) = {NULL, gift, weasel, list};
+int gift_request(char ** requestbuf, char * filepath);
+int weasel_request(char ** requestbuf, char * filepath);
+int list_request(char ** requestbuf, char * filepath);
+int (*mode_request_funs[])(char **, char *) = {gift_request, weasel_request, list_request};
+
+int gift_response(char * remainder, SOCKET sockfd, char * filepath);
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath);
+int list_response(char * remainder, SOCKET sockfd, char * filepath);
+int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath) = {gift_response, weasel_response, list_response};
 
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
 #define READ_ONLY "r"
 #define MAXRESPONSE 90
 
-#define HEADER_SEPARATOR ":"
-#define HEADER_TERMINATOR "\n"
+#define HEADER_SEPARATOR ':'
+#define HEADER_TERMINATOR '\n'
 #define STATUS_SEPARATOR " "
 #define STATUS_TERMINATOR "\n"
 
-static int   gift_client(char *filepath, bool verbose);
-static char* gift_header(char *filepath, long int file_size, bool verbose);
-static char* gift_data(FILE* input_file, bool verbose, char* gift_request);
-static int   gift_send(char *gift_request, bool verbose);
-static FILE* file_parameters(char *filepath, long int *file_size, bool verbose);
-static char *process_input(int argc, char ** argv, enum Mode * mode, bool *verbose, char *ip, uint16_t *port);
-char * extract_header(char * buf, Header * header);
+FILE * file_parameters(char * filepath, long int *file_size);
+char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
+char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
 
 int main(int argc, char ** argv)
 {
 	char * filepath, ip[IPV4LEN];
 	uint16_t port = 0;
-	enum Mode mode = NONE;
+	int mode;
 
 	// Set flag default values
 	verbose = false;
 
-	filepath = process_input(argc, argv, &mode, &verbose, ip, &port);
+	filepath = process_input(argc, argv, &mode, ip, &port);
 
 
 	if(filepath == NULL)
@@ -91,66 +82,68 @@ int main(int argc, char ** argv)
 
 	int ret = 0;
 	// Send request
-	if(ret = send(sockfd, requestbuf, strlen(requestbuf), 0) < 1)
+	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
 	free(requestbuf);
 
-	char * responsebuf = (char *)malloc(MAXRESPONSE);
-	if(NULL == responsebuf)
-	{
-		fprintf(stderr, "client: failed to allocate memory for response.\n%s",
-				strerror(errno));
-		return EXIT_FAILURE;
-	}
-	// Receive response
-	int n_buffers = 0;
-	do{
-		ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
-		printf("client:RECEIVED>>>%s<<<\n", responsebuf);
-		response(mode, responsebuf, filepath);
-		memset(responsebuf, 0, MAXRESPONSE);
-	} while (ret > 0);
-
+	int status_code = 0;
+	char * status_description;
+	Header_array_t headers;
+	response(sockfd, mode, filepath, &status_code, &status_description, &headers);
+	if(verbose) printf("client: finished receiveing headers.\n");
+	// Check mode to see if there should be data ( WEASEL )
+	// 	Process headers
+	//		search headers for data-length header	
+	//		if present: 
+	// 			Receive any data
+	// Otherwise, we're
+	free_header_array(&headers);
 	free(filepath);
 	return EXIT_SUCCESS;
 }
-/* Populates fields in <header> with firse header found in <buf>
- * Returns pointer to the end of the header or NULL if not found */
-char * extract_header(char * buf, Header * header)
+
+/* =========================================================================
+ * Utility functions for processing responses from the server
+ * ========================================================================= */
+
+/* Populates fields in <header> with first header found in <buf>
+ * Returns pointer to the end of the header + 1 (skip \n) or NULL if not found */
+char * extract_header(char * buf, Header_array_t * header_array, bool * finished)
 {
-	static bool headers_finished = false;
-	if(headers_finished) return buf;
 	char * sep = buf, * term = buf; // Position of substring in string
-	if(0 == strncmp(buf, HEADER_TERMINATOR, 1))
+	Header_t header;
+	/*
+	if(0 == strncmp(buf, (char *)HEADER_TERMINATOR, 1))
+	*/
+	if(*buf == HEADER_TERMINATOR)
 	{
-		headers_finished = true;
-		return buf;
+		*finished = true;
+		return buf + 1;
 	}
-	if(NULL == (sep = strstr(buf, HEADER_SEPARATOR))
-			|| NULL == (term = strstr(buf, HEADER_TERMINATOR)))
+	if(NULL == (sep = strchr(buf, HEADER_SEPARATOR))
+			|| NULL == (term = strchr(buf, HEADER_TERMINATOR)))
 	{
 		fprintf(stderr, "extract_header: header not found in %s.\n", buf);
 		return NULL;
 	}
-	if(NULL == (header->name = strndup(buf, sep - buf))
-			|| NULL == (header->value = strndup(sep + 1, term - sep + 1)))
+	if(NULL == (header.name = strndup(buf, sep - buf))
+			|| NULL == (header.value = strndup(sep + 1, term - sep - 1)))
 	{
 		fprintf(stderr, "extract_header: no memory for header %s.\n", buf);
 		return NULL;
 	}
 	if(verbose) printf("extract_header: header %s read, value %s.\n",
-			header->name, header->value);
-	return term;
+			header.name, header.value);
+	insert_header_array(header_array, header);
+	return term + 1;
 }
 
+/* Extracts a status number and description from a buffer <buf> */
 char * extract_status(char * buf, char ** description, int *status_code)
 {
-	static bool status_found = false;
-	if(status_found) return buf;
-
 	char * sep = buf, * term = buf;
 	if(NULL == (sep = strstr(buf, STATUS_SEPARATOR))
 			|| NULL == (term = strstr(buf, STATUS_TERMINATOR)))
@@ -164,40 +157,86 @@ char * extract_status(char * buf, char ** description, int *status_code)
 		return NULL;
 	}
 	*status_code = atoi(strtok(buf, STATUS_SEPARATOR));
-	if(verbose) printf("extract_status: status \"%d %s\".\n",
-			*status_code, *description);
-	status_found = true;
 	return term;
 }
+
+/* ==========================================================================
+ * Client processing of the response from the server
+ * ========================================================================== */
+
 /* Takes a response, block by block and parses it.
  * Extracts status code, status message, header names and values, and data */
-static int response(enum Mode mode, char * responsebuf, const char * filepath)
+static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers)
 {
-	int status_code = 0;
-	char * status_description;
-	Header ** headers = (Header *)malloc(sizeof(Header)), **headers_new;
-	int i = 0; // index into headers array
-	char * pos = responsebuf;
-	pos = extract_status(pos, &status_description, &status_code);
-	for(;pos != NULL && strncmp(pos, HEADER_TERMINATOR, 1);
-			headers_new = realloc(headers, i * sizeof(Header)))
+	int ret = -1;	
+	char * responsebuf = (char *)malloc(MAXRESPONSE);
+	if(NULL == responsebuf)
 	{
-		if(headers_new == NULL)
+		fprintf(stderr, "client: failed to allocate memory for response. %s\n",
+				strerror(errno));
+		return EXIT_FAILURE;
+	}
+	// Receive response
+	char * pos; // Current position in response buffer
+	// Extract status
+	
+	memset(responsebuf, 0, MAXRESPONSE);
+	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
+	if(NULL == (pos = extract_status(responsebuf, status_description, status_code)))
+	{
+		fprintf(stderr, "client: failed to find a status in response.\n");
+		return EXIT_FAILURE;
+	}
+	if(verbose) printf("extract_status: response status \"%d %s\".\n",
+			*status_code, *status_description);
+	// Extract headers
+	bool headers_finished = false;
+	int n_headers;
+	init_header_array(headers, HEADERINITBUFLEN);
+
+	char * last_term = pos; // Position of last HEADER_TERMINATOR found
+	int spaces = 0;
+	for(n_headers = 0; false == headers_finished && ret > 0;)
+	{
+		// Copy unprocessed data into beginning of responsebuf
+		// Receive <= (MAXRESPONSE - last_term) bytes, 
+		// Append to responsebuf
+
+		// Empty spaces to fill from last loop ( +1 for \n )
+		spaces = last_term - responsebuf + 1;
+		memmove(responsebuf, last_term + 1, MAXRESPONSE - spaces);
+		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
+		// TODO zero unused space in responsebuf
+		// find all headers in buffer
+		for(pos = responsebuf; false == headers_finished && NULL != pos; n_headers++)
 		{
-			fprintf(stderr, "response: malloc failed for new header.\n");
-			break;
-		} else {
-			headers = headers_new;
+			// headers not finished, header was found
+			//responsebuf = pos;
+			last_term = pos;//responsebuf;
+			pos = extract_header(pos, headers, &headers_finished);
 		}
-		pos = extract_header(pos, headers[i]);
-		printf("response: header \"%s:%s\".\n", headers[i]->name, headers[i]->value);
-		i++;
 	}
 	return EXIT_SUCCESS;
 }
-static int request(enum Mode mode, char ** requestbuf, const char * filepath)
+
+int gift_response(char * remainder, SOCKET sockfd, char * filepath)
 {
-	int err = 0;
+	return EXIT_SUCCESS;
+}
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
+{
+	return EXIT_SUCCESS;
+}
+int list_response(char * remainder, SOCKET sockfd, char * filepath)
+{
+	return EXIT_SUCCESS;
+}
+/* ===========================================================================
+ * Construction of the request to the server in a character buffer
+ * =========================================================================== */
+
+static int request(Mode_t mode, char ** requestbuf, char * filepath)
+{
 	// Add command to header
 	// Allocate memory
 	if(NULL == (*requestbuf = (char *) malloc(strlen(mode_strs[mode]) + 1 + strlen(filepath) + 2)))
@@ -216,7 +255,7 @@ static int request(enum Mode mode, char ** requestbuf, const char * filepath)
 	append_header(requestbuf, "Date", "2018-04-07T14:31:32Z");
 
 	// Call individual request constructors
-	if(0 != mode_funs[mode](requestbuf, filepath))
+	if(0 != mode_request_funs[mode](requestbuf, filepath))
 	{
 		fprintf(stderr, "request: error in processing %s request.\n", mode_strs[mode]);
 		return EXIT_FAILURE;
@@ -226,15 +265,20 @@ static int request(enum Mode mode, char ** requestbuf, const char * filepath)
 }
 
 /* Appends weasel-specific headers to request in *requestbuf */
-static int weasel(char ** requestbuf, const char * filepath)
+int weasel_request(char ** requestbuf, char * filepath)
 {
 	// How many headers?
-	// None?
+	finish_headers(requestbuf);
+	return 0;
+}
+int list_request(char ** requestbuf, char * filepath)
+{
+	// How many headers?
 	finish_headers(requestbuf);
 	return 0;
 }
 
-static int gift(char ** requestbuf, const char * filepath)
+int gift_request(char ** requestbuf, char * filepath)
 {
 	FILE *input_file;
 	long int size_of_file;
@@ -261,8 +305,8 @@ static int gift(char ** requestbuf, const char * filepath)
 	return EXIT_SUCCESS;
 }
 
-
-static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbose, char *ip, uint16_t *port)
+/* ========================= INPUT PROCESSING ================================*/
+char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port)
 {
 	char optc; // Option character
 	int opti = 0; // Index into option array
@@ -294,10 +338,10 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 			case 0: // Flag has been set
 				break;
 			case 'v':
-				*verbose = true;
+				verbose = true;
 				break;
 			case 'q':
-				*verbose = false;
+				verbose = false;
 				break;
 			case 'g':
 				if(NULL == (filepath = (char*) malloc(strlen(optarg) + 1)))
@@ -354,7 +398,7 @@ static char *process_input(int argc, char ** argv,enum Mode * mode, bool *verbos
 				printf("-q\t--quiet\tRun the program in quiet mode. Default.\n\n");
 				printf("-g\t--gift\tGIFT server with file <filepath>.\n");
 				printf("-w\t--weasel\tWeasel(get) file <filepath> from server.\n");
-				printf("-l\t--list\tList files from <filepath> and below.\n");
+//				printf("-l\t--list\tList files from <filepath> and below.\n");
 				printf("-h\t--help\tDisplay this help.\n");
 				printf("-i\t--ip\tIPv4 of host to connect to.\n");
 				printf("-p\t--port\tPort on host to connect to.\n");

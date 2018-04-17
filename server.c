@@ -42,8 +42,6 @@ int parse_request(Request *reqRx, Header *headerRx, char *request);
 //int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket;
 //int list_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 
-
-
 int main()
 {
     // Create variables needed by this function
