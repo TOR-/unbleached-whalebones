@@ -1,5 +1,8 @@
 #ifndef APPLICATION_H
 #define APPLICATION_H
+
+#include <stdbool.h>
+
 #define READ_ONLY "r"
 #define DEBUG
 
@@ -8,17 +11,47 @@
 #define NUM_HEADERS 3
 #define MAX_HEADER_SIZE 20
 
+#define HEADERINITBUFLEN 5
+
 bool verbose;
 
+typedef struct Response_t{
+	char * header;
+	char * body;
+}response_t;
+
+typedef struct head{ // Should members be character types?? Change before/after?
+    int  data_length;
+    int timeout ;
+    //Change to enum
+    char *ifexist;
+} Header;
+
+typedef struct{
+	char * name;
+	char * value;
+}Header_t;
+
+typedef struct {
+  Header_t *array;
+  size_t used;
+  size_t size;
+} Header_array_t;
+
+void init_header_array(Header_array_t *a, size_t initial);
+void insert_header_array(Header_array_t *a, Header_t element);
+void free_header_array(Header_array_t *a);
+
+
+typedef enum {GIFT, WEASEL, LIST} Mode_t;
+extern const char * mode_strs[];
+extern const char * header_name[];
 typedef enum h_name { DATA_L, TIMEOUT, IF_EXISTS} H_name;
-typedef enum mode {GIFT, WEASEL, LIST} Mode;
-const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
-const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
 
-FILE* file_parameters(const char *filepath, long int *file_size);
+FILE * file_parameters(char *filepath, long int *file_size);
 int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
 
 #endif

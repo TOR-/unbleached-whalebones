@@ -25,7 +25,7 @@ static int socketCount = 0;  // number of sockets created
 SOCKET TCPSocket (int address_family)
 {
     SOCKET mySocket = INVALID_SOCKET;  // identifier for socket
-    int retVal;     // return value from function
+    int retVal = 0;     // return value from function
 
     // Now create the socket as requested.
     // SOCK_STREAM means the socket works with streams of bytes,
