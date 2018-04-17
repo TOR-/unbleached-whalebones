@@ -1,6 +1,5 @@
 GIFT ~/Documents
-Data-length:4
-Timeout:10
-If-exists:overwrite
+Data-length:4321
+Timeout:9876
 
 

@@ -10,7 +10,6 @@
 #define MAX_HEADER_SIZE 20
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
-#include <stdbool.h>
 
 #include <stdbool.h>
 
@@ -40,8 +39,8 @@ int finish_headers(char ** headers);
 //FILE* file_parameters(const char *filepath, long int *file_size);
 //int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
 
-bool parse_command(char * cmdbuff, Mode * cmdRx, int * index);
-int parse_filepath(char * buff, char * filepath, int * index);
+bool parse_command(char * buff, Mode * cmdRx, int * index);
+int parse_filepath(char * buff, char ** filepath, int * index);
 int parse_header(char * buff, Header * head, int * index);
 
 #endif

@@ -27,7 +27,7 @@
 #include "CS_TCP.h"
 
 #define SERVER_PORT 6666  // port to be used by the server
-#define MAXREQUEST 64      // size of request array, in bytes
+#define MAXREQUEST 80      // size of request array, in bytes
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 
@@ -118,13 +118,14 @@ int main()
                 perror("parse req: Invalid command\n");
                 return 0;
             }
-            printf("index now equals = %d\n", index);
             //Switch case for all problems
             parse_filepath(request, &(reqRx.filepath), &index);
-
-            while(!(retVal = parse_header(request, &headerRx, &index)))
-                if(retVal > 1) printf("Parse Req: Error\n");
             
+            while((retVal = parse_header(request, &headerRx, &index))){
+                if(retVal > 1) printf("Parse Req: Error\n");
+                printf("index now equals = %d\n", index);
+            }
+        
         }
         
     } // end of while loop
