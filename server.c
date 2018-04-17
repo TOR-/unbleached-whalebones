@@ -20,12 +20,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdbool.h>
-<<<<<<< HEAD
 #include <sys/types.h>
 #include <dirent.h>
-=======
-#include "application.h"
->>>>>>> 3655ab7e5023da9bcb5b6d3f10c2b3b6a96e35fe
 
 #include "application.h"
 #include "CS_TCP.h"
@@ -36,13 +32,10 @@
 #define ENDMARK 10         // the newline character
 
 int parse_request(Request *reqRx, Header *headerRx, char *request);
-<<<<<<< HEAD
-=======
 //char * check_parse_error(int error, char * err_msg);
 
 //char * check_parse_error(int error, char * err_msg)
-/* request processign functions:
->>>>>>> 3655ab7e5023da9bcb5b6d3f10c2b3b6a96e35fe
+// request processign functions:
  
 //int send_error_response(int status_code, SOCKET connectSocket);
 //int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
@@ -59,6 +52,7 @@ int main()
     SOCKET listenSocket = INVALID_SOCKET;  // identifier for listening socket
     SOCKET connectSocket = INVALID_SOCKET; // identifier for connection socket
     int retVal;         // return value from various functions
+    int index = 0;      // interfunction index reference point
     int numRx = 0;      // number of bytes received
     int numResp;        // number of bytes in response string
     int stop = 0;       // flag to control the loop
@@ -119,26 +113,25 @@ int main()
             // Print details of the request
             printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
             
-            //function to parse request[] and store values in structure
-            if((retVal = parse_request(&reqRx, &headerRx, request)) == 0)
-                printf("All good\n");
-            else{
-                printf("Error: Invalid error returned by parse_request\n");
+            if(!parse_command(request, &(reqRx.cmdRx), &index))
+            {
+                perror("parse req: Invalid command\n");
+                return 0;
             }
-<<<<<<< HEAD
+            printf("index now equals = %d\n", index);
+            //Switch case for all problems
+            parse_filepath(request, &(reqRx.filepath), &index);
+
+            while(!(retVal = parse_header(request, &headerRx, &index)))
+                if(retVal > 1) printf("Parse Req: Error\n");
+            
         }
-        */
-       
+        
     } // end of while loop
     //numRx = recv(connectSocket, request, MAXREQUEST, 0);
 
     //retVal = list(reqRx, headerRx, connectSocket);
-=======
->>>>>>> 3655ab7e5023da9bcb5b6d3f10c2b3b6a96e35fe
 
-
-        } 
-    }
     // If we received a request, then we send a response
     if (numRx > 0)
     {
@@ -195,28 +188,6 @@ int main()
     TCPcloseSocket(listenSocket);
     return 0;
 }
-
-/*Takes a request, parses the data within and stores the data within
-in useful formats within a struct for processing*/
-int parse_request(Request *reqRx, Header *headerRx, char *request)
-{
-    int retVal;
-
-    if(!parse_command(request, &(reqRx->cmdRx)))
-    {
-        perror("parse req: Invalid command\n");
-        return 0;
-    }
-    //Switch case for all problems
-    parse_filepath(request, (reqRx->filepath));
-
-    while(!(retVal = parse_header(request, headerRx)))
-        if(retVal > 1) printf("Parse Req: Error\n");
-    
-    return 0;
-    //send error
-}
-
 
 
 /*int parse_request(Request *reqRx, Header *headerRx, char *request){
@@ -386,17 +357,10 @@ int parse_request(Request *reqRx, Header *headerRx, char *request)
                 end = true;
             }
         }
-<<<<<<< HEAD
-    }
-    return 0;
-}
-                                 
-=======
 
     return 0;
 }
 */                                    
->>>>>>> 3655ab7e5023da9bcb5b6d3f10c2b3b6a96e35fe
 /*
 int send_error_response(int status_code, SOCKET connectSocket){
 	

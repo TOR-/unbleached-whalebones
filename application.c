@@ -3,8 +3,6 @@
 #include <string.h>
 #include "application.h"
 
-#include "application.h"
-
 const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
 const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
 /* Appends a header to a <LF> separated list of headers
@@ -124,24 +122,29 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 //Returns true for valid command, 0 for invalid.
 //Sets cmdRx to mode of operation. Stores filepath.
 //Increments buff to next alphanumeric character.
-bool parse_command(char * buff, Mode * cmdRx)
+bool parse_command(char * buff, Mode * cmdRx, int *index)
 {
-	int count;
+	int count = 0;
 	char * cmdbuff;
 	bool valid;
+
+	//printf("first character received = %c\n", *(buff[count]));
 	
-	for(count = 0; buff[count++] != ' ';)
+	while( buff[count++] != ' ');
+
+	count--;
 
 	if(NULL == (cmdbuff = (char *)malloc((count + 1)*sizeof(char))))
     {
 		perror("parse command: Error allocating memory\n");    
 		exit(EXIT_FAILURE);	
 	}
-
+	//printf("buffer pints to = %c, count = %d\n", *(buff[0]), count);
 	int i;
 	for(i = 0; i < count; i++)
         cmdbuff[i] = buff[i];
 	
+	//printf("buffer points to = %c, count = %d\n", *buff[0], count);
 	cmdbuff[count] = NULLBYTE;
 
 	for(i = 0, valid = false; i < NUM_MODES; i++)
@@ -151,12 +154,15 @@ bool parse_command(char * buff, Mode * cmdRx)
             valid = true;
         }
 	
-	buff += count;
-	
+	//printf("%s_\n", cmdbuff);
+	//printf("buffer pionts to = %c\n", *(buff[0]));
+	*index += count + 1;
+	//printf("buffer pints to = %c\n", *(buff[0]));
+
 	return valid;
 } 
 
-int parse_filepath(char * buff, char * filepath)
+int parse_filepath(char * buff, char * filepath, int * index)
 {
 	int count;
 	for(count = 0; buff[count++] != '\n';)
@@ -178,10 +184,10 @@ int parse_filepath(char * buff, char * filepath)
 
 }
 
-int parse_header(char * buff, Header * head)
+int parse_header(char * buff, Header * head, int * index)
 {
 	int count = 0;
-	bool valid;
+	bool valid = false;
 	char headbuff[MAX_HEADER_SIZE];
 
 	for(count = 0; buff[count++] != ':';)
@@ -191,7 +197,7 @@ int parse_header(char * buff, Header * head)
 
 	buff += count + 1;
 
-	for(int i = 0, valid = false; i < NUM_HEAD + 1; i++)
+	for(int i = 0; i < NUM_HEAD + 1; i++)
             if(!strcmp(headbuff, header_name[i]))
             {
                 switch(i)
