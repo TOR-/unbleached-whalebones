@@ -9,7 +9,6 @@
 #define MAX_HEADER_SIZE 20
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
-#include <stdbool.h>
 
 bool verbose;
 
