@@ -77,7 +77,8 @@ List all files located at ```<filepath>```.
 300 Command not recognised  
 301 Command nonsensical at this time  
 302 Command incomplete  
-303 Command too divilish  
+303 Header argument invalid  
+304 Header not recognised  
 310 Not logged in  
 311 Insufficiently privileged  
 312 Credentials incorrect  
@@ -85,6 +86,7 @@ List all files located at ```<filepath>```.
 321 Server got bored and left this conversation  
 330 Unplugged  
 340 File not found  
+341 Illegal file path  
   
 #### 4xx server error  
 400 Command not implemented  
