@@ -23,8 +23,8 @@ typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
     long int timeout ;
     //Change to enum
-    char *ifexist;
-    char * data_pos;
+    //char *ifexist;
+    //char * data_pos;
 } Header;
 
 typedef struct req{

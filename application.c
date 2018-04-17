@@ -127,8 +127,6 @@ bool parse_command(char * buff, Mode * cmdRx, int * index)
 	int count = 0;
 	char * cmdbuff;
 	bool valid;
-
-	//printf("first character received = %c\n", *(buff[count]));
 	
 	while( buff[count++] != ' ');
 
@@ -139,25 +137,21 @@ bool parse_command(char * buff, Mode * cmdRx, int * index)
 		perror("parse command: Error allocating memory\n");    
 		exit(EXIT_FAILURE);	
 	}
-	//printf("buffer pints to = %c, count = %d\n", *(buff[0]), count);
+	
 	int i;
 	for(i = 0; i < count; i++)
         cmdbuff[i] = buff[i];
 	
-	//printf("buffer points to = %c, count = %d\n", *buff[0], count);
 	cmdbuff[count] = NULLBYTE;
 
-	for(i = 0, valid = false; i < NUM_MODES; i++)
+	for(i = 0, valid = false; i < NUM_MODES; i++){
         if(!strcmp(cmdbuff, mode_strs[i]))
         {
             * cmdRx = i;
             valid = true;
         }
-	
-	//printf("%s_\n", cmdbuff);
-	//printf("buffer pionts to = %c\n", *(buff[0]));
+	}
 	*index += count + 1;
-	//printf("buffer pints to = %c\n", *(buff[0]));
 
 	return valid;
 } 
@@ -194,9 +188,8 @@ int parse_header(char * buff, Header * head, int * index)
 	for(count = 0; buff[*index + count] != ':'; count++){
 		headbuff[count] = buff[*index + count];
 	}
-
 	headbuff[count++] = NULLBYTE;
-	printf("headbuff = %s\n", headbuff);
+	
 	*index += count;
 	buff = buff + *index;
 	
@@ -270,9 +263,7 @@ int parse_header(char * buff, Header * head, int * index)
             if(buff[0] == '\n')
             {
                 printf("reqParse: End of headers. Nothing left to process\n");
-                //Assign data position pointer value of last header byte
-                //Buffer is now at beginning of data
-				*index++;
+				(*index) = (*index) + 2;// start of data index
 				return 0;
             } 
 		

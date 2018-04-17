@@ -122,16 +122,21 @@ int main()
             parse_filepath(request, &(reqRx.filepath), &index);
             
             while((retVal = parse_header(request, &headerRx, &index))){
-                if(retVal > 1) printf("Parse Req: Error\n");
-                printf("index now equals = %d\n", index);
+                if(retVal > 1) 
+                    printf("Parse Req: Error\n");
             }
-        
+            //printf("\nindex now equals = %d\n", index);
         }
         
     } // end of while loop
-    //numRx = recv(connectSocket, request, MAXREQUEST, 0);
-
-    //retVal = list(reqRx, headerRx, connectSocket);
+    
+    //INDEX STORES INDEX OF START OF DATA
+    #ifdef DEBUG
+    printf("\nCommand:%d\n", reqRx.cmdRx);
+    printf("Filepath:%s\n", reqRx.filepath);
+    printf("Data-length:%ld\n", headerRx.data_length);
+    printf("Timeout:%ld\n", headerRx.timeout);
+    #endif  
 
     // If we received a request, then we send a response
     if (numRx > 0)
