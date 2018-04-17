@@ -1,0 +1,9 @@
+GIFT ~/Documents
+Data-length:4
+Timeout:10
+If-exists:overwrite
+
+Oh hello there!!!!!!!!!!!!!! 
+This 
+is a file 
+$$$$$$$$$$$$$$$$$$$$$

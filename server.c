@@ -20,11 +20,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdbool.h>
-#include "application.h"
-#include "application.c"
+#include <sys/types.h>
+#include <dirent.h>
 
+#include "application.h"
 #include "CS_TCP.h"
-#include "CS_TCP.c"
 
 #define SERVER_PORT 6666  // port to be used by the server
 #define MAXREQUEST 64      // size of request array, in bytes
@@ -33,8 +33,8 @@
 #define NULLBYTE '\0'
 
 typedef struct head{ // Should members be character types?? Change before/after?
-    int  data_length;
-    int timeout ;
+    long int  data_length;
+    long int timeout ;
     //Change to enum
     char *ifexist;
 } Header;
@@ -46,14 +46,13 @@ typedef struct req{
 } Request;
 
 int parse_request(Request *reqRx, Header *headerRx, char *request);
-/* request processign functions:
  
-int send_error_response(int status_code, SOCKET connectSocket);
-int gift(Request reqRx, Header headerRx, SOCKET connectSocket);
-int weasel(Request reqRx, Header headerRx, SOCKET connectSocket;
-int list(Request reqRx, Header headerRx, SOCKET connectSocket);
- 
-*/
+//int send_error_response(int status_code, SOCKET connectSocket);
+//int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+//int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket;
+//int list_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+
+
 
 int main()
 {
@@ -127,19 +126,13 @@ int main()
             //function to parse request[] and store values in structure
             retVal = parse_request(&reqRx, &headerRx, request);
             
-            /* SHOULD WE HAVE A SIMPLE HEADER NAME TO MARK THE CLIENT ENDING CONNECTION?? */
-            *loc = memchr(request, ENDMARK, numRx);  // See if the request contains the end marker
-            if (loc != NULL)  // end marker was found
-            {
-                printf("Request contains end marker\n");
-                stop = 1;   // set the flag to end the loop
-            }
+
 
         } // end of if data received
     
 
 // ============== DECIDE RESPONSE ====================================
-        
+        /*
         if( retVal != 0)
             send_error_response(retVal, connectSocket);
         else
@@ -157,10 +150,12 @@ int main()
                     break;
             }
         }
-       
+        */
        
     } // end of while loop
+    //numRx = recv(connectSocket, request, MAXREQUEST, 0);
 
+    //retVal = list(reqRx, headerRx, connectSocket);
 
 // ============== SEND RESPONSE ======================================
 
@@ -222,6 +217,9 @@ int main()
 }
 
 
+
+
+
 /*Takes a request, parses the data within and stores the data within
 in useful formats within a struct for processing*/
 int parse_request(Request *reqRx, Header *headerRx, char *request){
@@ -229,7 +227,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     int index = 0; // current location within request[]
     int char_count = 0; // counts length of current substring
     int i = 0; //general loop counter
-    int end = 0; //flags end of header
+    bool end = 0; //flags end of header
     char headbuff[MAX_HEADER_SIZE]; //Create array to read in each header value
     char * cmdbuff; //Buffer to store command and filepath
     char * end_of_header; //Pointer used to store position of end of header
@@ -264,8 +262,9 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
     */
 
     #ifdef DEBUG
-     printf("reqParse: cmdRx: %s \n", cmdbuff);
-     printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
+    printf("reqParse: valid == %d\n", valid);
+    printf("reqParse: cmdRx: %s \n", cmdbuff);
+    printf("reqParse: Operating in mode %u\n", (reqRx->cmdRx));
     #endif
 
     //Count number of bytes in filepath    
@@ -287,63 +286,110 @@ int parse_request(Request *reqRx, Header *headerRx, char *request){
      printf("reqParse: request[index] = %c\n", request[index]);
     #endif
 
-    /*==================================================*/
-    //strstr returns pointer to first ':' found after ip str
-    //In this case, we only want to the value before ':'
-    end_of_header = strchr((request + index), (int)END_HEAD);
-    /*
-    if(end_of_header == NULL){
-        fprintf(stderr,"No colon separater in header");
-        return HEADER_SYNTAX;
-    }*/
-    
-    //Subtracting position of final byte from first byte gives
-    //number of bytes to read in including null byte
-    //Store this in char_count
-    char_count = end_of_header - (request + index);
-    //Incremenet index so it sits at header arg.
-    //+2 for ':' and ' '
-    index += char_count + 2;
+    while(end == false)
+    {
+        char_count = 0;
+        //strchr returns pointer to first ':' found after ip str
+        //In this case, we only want to the value before ':'
+        end_of_header = strchr((request + index), (int)END_HEAD);
+        //Subtracting position of final byte from first byte gives
+        //number of bytes to read in including null byte
+        //Store this in char_count
+        char_count = end_of_header - (request + index);
 
-    #ifdef DEBUG
-     printf("reqParse: Printing %d number of bytes to header.\n", char_count);
-    #endif
-    //Now copy header into headbuff str. 
-    strncpy(headbuff, (request + index), char_count);
-    //Now need to read header value and increment index
-    //Read in value as string
-    //+================================================
-    #ifdef DEBUG
-     printf("reqParse: Header n is %s\n", headbuff);
-    #endif
-    //Now compare header and assign enum
-    //Tests for invalid header
-    for(i = 0, valid = false; i < NUM_HEADERS; i++)
-        if(!strcmp(headbuff, header_name[i]))
+        #ifdef DEBUG
+        printf("reqParse: Printing %d number of bytes to header.\n", char_count);
+        #endif
+        //Now copy header into headbuff str. 
+        strncpy(headbuff, (request + index), char_count);
+        headbuff[char_count] = NULLBYTE;
+        //Incremenet index so it sits at header arg.
+        //+1 for ':'
+        index += char_count + 1;
+        //Now need to read header value and increment index
+        //Read in value as string
+        //+================================================
+        #ifdef DEBUG
+        printf("reqParse: Header n is %s\n", headbuff);
+        #endif
+        //Now compare header and assign enum
+        //Tests for invalid header
+        //Loop runs for each possible iteration of i + 1 for
+        //an invalid iteration.
+        //RETURN POINTER TO LAST '\N' AND CHECK FOR FILE IN MAIN
+        for(i = 0, valid = false; i < NUM_HEAD + 1; i++)//CHANGE IT BACK
         {
-            switch(i)
+            if(!strcmp(headbuff, header_name[i]))
             {
-                case DATA_L:
-                    //headerRx.data_length = atoi(header_value);
-                    valid = true;
-                    break;
-                case TIMEOUT:
-                    //headerRx.timeout = atoi(header_value);
-                    valid = true;
-                    break;
-                case IF_EXISTS:
-                    //headerRx.timeout = header_value;
-                    valid = true;
-                    break;
+                switch(i)
+                {
+                    case DATA_L:
+                        //Count amount of char in header value
+                        for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
+                        //Need to read number here
+                        (headerRx->data_length) = strtol((request + index), NULL, DEC);
+                        //Index is now at next header value
+                        index += char_count + 1;
+                        valid = true;
+                        
+                        #ifdef DEBUG
+                        printf("reqParse: Data length is %ld bytes\n", (headerRx->data_length));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        printf("reqParse: req[index] is %c\n", request[index]);
+                        #endif
+                        break;
+
+                    case TIMEOUT:
+                        //Count amount of char in header value
+                        for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
+                        //Need to read number here
+                        (headerRx->timeout) = strtol((request + index), NULL, DEC);
+                        //Index is now at beginning of next header value
+                        index += char_count + 1;
+                        valid = true;
+                        
+                        #ifdef DEBUG
+                        printf("reqParse: Timeout is %ld bytes\n", (headerRx->timeout));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        printf("reqParse: req[index] is %c\n", request[index]);
+                        #endif
+                        break;
+
+                    case IF_EXISTS:
+                        //Count amount of char in header value
+                        for(i = index, char_count = 0; request[i++] != '\n'; char_count++)    
+                        //Need to read number here
+                        (headerRx->ifexist) = strtol((request + index), NULL, DEC);
+                        //Index is now at beginning of next header value
+                        index += char_count + 1;
+                        valid = true;
+
+                        #ifdef DEBUG
+                        printf("reqParse: If-exists is %ld bytes\n", (headerRx->ifexist));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        printf("reqParse: req[index] is %c\n", request[index]);
+                        #endif
+                        break;
+
+                    default:
+                        valid = false;
+                        break;
+                }
             }
         }
-    //Return appropriate error code
-    /*if(!valid) return _______;*/
-    //====================================================
+        //Check for invalid input
+        if(!valid) printf("reqParse: Input is shite\n"); //return appropriate error code
+        //Check to see if header is final one.
+        if(request[index + 1] == '\n')
+        {
+            printf("reqParse: End of headers. Nothing left to process\n");
+            end = true;
+        }
+    }
     return 0;
 }
-                                    
-
+                                 
+/*
 int send_error_response(int status_code, SOCKET connectSocket){
 	
 	
@@ -353,25 +399,15 @@ int send_error_response(int status_code, SOCKET connectSocket){
 
 }
 							
-int gift(Request reqRx, Header headerRx, SOCKET connectSocket){
+int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 
-
-
-
-
-}
-
-int weasel(Request reqRx, Header headerRx, SOCKET connectSocket){
-
-
+use recv funvtion with FILE * as argument
 
 
 
 }
 
-
-int list(Request reqRx, Header headerRx, SOCKET connectSocket){
-
+int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 
 
 
@@ -380,22 +416,23 @@ int list(Request reqRx, Header headerRx, SOCKET connectSocket){
 }
 
 
+int list_server(Request reqRx, Header headerRx, SOCKET connectSocket)
+{
 
+    DIR *dp;
+    struct dirent *ep;
+    dp = opendir(reqRx.filepath);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    if(dp != NULL)
+    {
+        while(ep = readdir(dp))
+            fprintf(stdout, "%s", ep->d_name);
+        
+        closedir(dp);
+    }
+    else
+    {
+        fprintf(stderr, "Can't open the directory\n");
+    }
+    return 0;
+}*/

@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "application.h"
+
+const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
+const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
 /* Appends a header to a <LF> separated list of headers
  * appends <name>:<content>\n
  * returns status code */
