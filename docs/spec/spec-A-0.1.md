@@ -69,16 +69,16 @@ List all files located at ```<filepath>```.
 110 Command successful  
   
 #### 2xx informational  
-200 Command not implemented  
-201 Server preparing for shutdown  
+200 Server preparing for shutdown  
 210 Username OK, need password  
   
 #### 3xx client error  
-300 Command not recognised  
-301 Command nonsensical at this time  
-302 Command incomplete  
-303 Header argument invalid  
-304 Header not recognised  
+300 Client error
+301 Command not recognised  
+302 Command nonsensical at this time  
+303 Command incomplete  
+304 Header argument invalid  
+305 Header not recognised  
 310 Not logged in  
 311 Insufficiently privileged  
 312 Credentials incorrect  
@@ -89,10 +89,10 @@ List all files located at ```<filepath>```.
 341 Illegal file path  
   
 #### 4xx server error  
-400 Command not implemented  
+400 Server error
+401 Command not implemented  
 410 Cannot satisfy request  
 411 Unrecognised encoding  
-499 Unspecified server error  
   
 ## HEADER:
 ```Data-length:<length>```  
@@ -104,7 +104,7 @@ Preferably this would be a MIME type
 Length of time server/client will wait for next response before closing connection  
 ```If-exists: <action>```  
 Action for server to take if the file exists  
-Either ```overwrite``` or ```skip```  
+Either ```overwrite```, ```skip``` or ```warn```
 
 # Proposed DRAFT A v0.2
 ## New headers:
