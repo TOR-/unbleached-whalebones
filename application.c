@@ -181,7 +181,9 @@ int parse_filepath(char * buff, char ** filepath, int * index)
 	return 0;
 
 }
-
+/* <buff>	points to first header in received buffer
+ * <head>	pointer to Header structure to populate wth parsed values 
+ * <index>	pointer to integer that contains index of beginning of current header being processed */
 int parse_header(char * buff, Header * head, int * index)
 {
 	int count = 0;
