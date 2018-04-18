@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <netdb.h>
 
 #include "CS_TCP.h"
@@ -18,13 +19,13 @@
 /* Mode-agnostic request construction */
 static int request(Mode_t mode, char **, char * );
 /* Response parser */
-static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers);
+static int response(SOCKET sockfd, Mode_t mode, char * filepath);
 /* Mode-specific request construction */
 int gift_request(char ** requestbuf, char * filepath);
 int weasel_request(char ** requestbuf, char * filepath);
 int list_request(char ** requestbuf, char * filepath);
 int (*mode_request_funs[])(char **, char *) = {gift_request, weasel_request, list_request};
-
+/* Mode-specific request dealiing with */
 int gift_response(char * remainder, SOCKET sockfd, char * filepath);
 int weasel_response(char * remainder, SOCKET sockfd, char * filepath);
 int list_response(char * remainder, SOCKET sockfd, char * filepath);
@@ -33,7 +34,7 @@ int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath) = 
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
 #define READ_ONLY "r"
-#define MAXRESPONSE 90
+#define MAXRESPONSE 1024
 
 #define HEADER_SEPARATOR ':'
 #define HEADER_TERMINATOR '\n'
@@ -81,26 +82,18 @@ int main(int argc, char ** argv)
 		return EXIT_FAILURE;
 
 	int ret = 0;
-	// Send request
+	// ============= Send request ================================================
 	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
 	free(requestbuf);
+	// ============= Request sent ================================================
 
-	int status_code = 0;
-	char * status_description;
-	Header_array_t headers;
-	response(sockfd, mode, filepath, &status_code, &status_description, &headers);
-	if(verbose) printf("client: finished receiveing headers.\n");
-	// Check mode to see if there should be data ( WEASEL )
-	// 	Process headers
-	//		search headers for data-length header	
-	//		if present: 
-	// 			Receive any data
-	// Otherwise, we're
-	free_header_array(&headers);
+	// ============= Deal with response ==========================================
+	response(sockfd, mode, filepath);
+	// FINISHED!!!!
 	free(filepath);
 	return EXIT_SUCCESS;
 }
@@ -166,8 +159,11 @@ char * extract_status(char * buf, char ** description, int *status_code)
 
 /* Takes a response, block by block and parses it.
  * Extracts status code, status message, header names and values, and data */
-static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_code, char ** status_description, Header_array_t * headers)
+static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 {
+	int status_code;
+   	char * status_description;
+	Header_array_t headers;
 	int ret = -1;	
 	char * responsebuf = (char *)malloc(MAXRESPONSE);
 	if(NULL == responsebuf)
@@ -178,25 +174,23 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_cod
 	}
 	// Receive response
 	char * pos; // Current position in response buffer
-	// Extract status
-	
+	// Extract status	
 	memset(responsebuf, 0, MAXRESPONSE);
 	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
-	if(NULL == (pos = extract_status(responsebuf, status_description, status_code)))
+	if(NULL == (pos = extract_status(responsebuf, &status_description, &status_code)))
 	{
 		fprintf(stderr, "client: failed to find a status in response.\n");
 		return EXIT_FAILURE;
 	}
-	if(verbose) printf("extract_status: response status \"%d %s\".\n",
-			*status_code, *status_description);
+
 	// Extract headers
 	bool headers_finished = false;
 	int n_headers;
-	init_header_array(headers, HEADERINITBUFLEN);
+	init_header_array(&headers, HEADERINITBUFLEN);
 
 	char * last_term = pos; // Position of last HEADER_TERMINATOR found
 	int spaces = 0;
-	for(n_headers = 0; false == headers_finished && ret > 0;)
+	for(n_headers = 0; false == headers_finished && ret > 0 && *(last_term + 1) != '\n';)
 	{
 		// Copy unprocessed data into beginning of responsebuf
 		// Receive <= (MAXRESPONSE - last_term) bytes, 
@@ -208,14 +202,37 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath, int *status_cod
 		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
 		// TODO zero unused space in responsebuf
 		// find all headers in buffer
-		for(pos = responsebuf; false == headers_finished && NULL != pos; n_headers++)
+		for(pos = responsebuf; false == headers_finished && NULL != pos && *(last_term + 1) != '\n'; n_headers++)
 		{
 			// headers not finished, header was found
 			//responsebuf = pos;
 			last_term = pos;//responsebuf;
-			pos = extract_header(pos, headers, &headers_finished);
+			pos = extract_header(pos, &headers, &headers_finished);
 		}
 	}
+	if(verbose) printf("client: finished receiveing headers.\n");
+	// Check status
+	if( status_code > S_CLIENT_ERROR )
+	{
+		fprintf(stderr, "response: request failed: %d %s.\n...Exiting...\n",
+				status_code, status_description);
+		exit(EXIT_FAILURE);
+	}
+	else if(verbose) printf("response: response status \"%d %s\".\n",
+			status_code, status_description);
+	free(status_description);
+	// Check mode to see if there should be data ( WEASEL )
+	// 	Process headers
+	//		search headers for data-length header	
+	//		if present: 
+	// 			Receive any data
+	if(verbose) 
+		printf("client: entering mode-specific response processing.\n Mode: %s.\n", 
+				mode_strs[mode]);
+	mode_response_funs[mode](last_term + 1, sockfd, filepath);
+
+	free_header_array(&headers);
+	free(responsebuf);
 	return EXIT_SUCCESS;
 }
 
@@ -225,6 +242,29 @@ int gift_response(char * remainder, SOCKET sockfd, char * filepath)
 }
 int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
 {
+	FILE * file = fopen(filepath, "w+b");
+	if( NULL == file )
+	{
+		fprintf(stderr, "weasel_response: failed to open file %s for writing.\n",
+				filepath);
+		exit(EXIT_FAILURE);
+	}
+	const int BUFSIZE = 40;
+	uint8_t buf[BUFSIZE];
+	
+	// write data left in remainder
+	fwrite(remainder, 1, strlen(remainder), file);
+	// Should probably check data-length header
+	for(int nrx = 1; nrx > 0;)
+	{
+		nrx = recv(sockfd, buf, BUFSIZE, 0);
+		printf("received %d\n%s\n", nrx, (char *)buf +1);
+		if(nrx > fwrite(buf, 1, nrx, file))
+		{
+			fprintf(stderr, "weasel_response: received %d bytes, wrote less than that.\n",
+					nrx);
+		}
+	}
 	return EXIT_SUCCESS;
 }
 int list_response(char * remainder, SOCKET sockfd, char * filepath)
