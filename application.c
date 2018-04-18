@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "application.h"
 
 const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
 const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
+
 
 /* Appends a header to a <LF> separated list of headers
  * appends <name>:<content>\n
@@ -120,6 +120,158 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 	return 0;
 
 	return EXIT_SUCCESS;
+}
+
+//Returns true for valid command, 0 for invalid.
+//Sets cmdRx to mode of operation. Stores filepath.
+//Increments buff to next alphanumeric character.
+bool parse_command(char * buff, Mode * cmdRx, int * index)
+{
+	int count = 0;
+	char * cmdbuff;
+	bool valid;
+	
+	while( buff[count++] != ' ');
+
+	count--;
+
+	if(NULL == (cmdbuff = (char *)malloc((count + 1)*sizeof(char))))
+    {
+		perror("parse command: Error allocating memory\n");    
+		exit(EXIT_FAILURE);	
+	}
+	
+	int i;
+	for(i = 0; i < count; i++)
+        cmdbuff[i] = buff[i];
+	
+	cmdbuff[count] = NULLBYTE;
+
+	for(i = 0, valid = false; i < NUM_MODES; i++){
+        if(!strcmp(cmdbuff, mode_strs[i]))
+        {
+            * cmdRx = i;
+            valid = true;
+        }
+	}
+	*index += count + 1;
+
+	return valid;
+} 
+
+int parse_filepath(char * buff, char ** filepath, int * index)
+{
+	int count;
+	for(count = 0; buff[*index + count] != '\n'; count++);
+
+	if(NULL == (*filepath = (char *)malloc((count + 1)*sizeof(char))))
+	{
+		perror("parse filepath: Error allocating memory\n");    
+		exit(EXIT_FAILURE);	
+	}
+	
+	for(int i = 0; i <= count; i++){
+        (*filepath)[i] = buff[(*index) + i];
+	}
+	
+	(*filepath)[count] = NULLBYTE;
+
+	*index += count + 1;
+
+	return 0;
+
+}
+
+int parse_header(char * buff, Header * head, int * index)
+{
+	int count = 0;
+	bool valid = false;
+	char headbuff[MAX_HEADER_SIZE];
+	
+	for(count = 0; buff[*index + count] != ':'; count++){
+		headbuff[count] = buff[*index + count];
+	}
+	headbuff[count++] = NULLBYTE;
+	
+	*index += count;
+	buff = buff + *index;
+	
+	for(int i = 0; i < NUM_HEAD; i++)
+            if(!strcmp(headbuff, header_name[i]))
+            {
+                switch(i)
+                {
+                    case DATA_L:
+                        //Count amount of char in header value
+                        for(count = 0; buff[count++] != '\n';)    
+                        //Need to read number here
+                        (head->data_length) = strtol(buff, NULL, DEC);
+                        //Index is now at next header value
+						buff += count + 1;
+						*index += count;
+                        valid = true;
+                        
+                        #ifdef DEBUG
+                        printf("reqParse: Data length is %ld bytes\n", (head->data_length));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        #endif
+
+                        break;
+
+                    case TIMEOUT:
+                        //Count amount of char in header value
+                        for(count = 0; buff[count++] != '\n';)    
+                        //Need to read number here
+                        (head->timeout) = strtol(buff, NULL, DEC);
+                        //Index is now at beginning of next header value
+                        buff += count + 1;
+						*index += count;
+                        valid = true;
+                        
+                        #ifdef DEBUG
+                        printf("reqParse: Timeout is %ld bytes\n", (head->timeout));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        #endif
+						//printf("buff points to = %c\n", buff[0]);
+                        break;
+
+                    /*case IF_EXISTS:
+                        //Count amount of char in header value
+                        for(count = 0; buff[count++] != '\n';)    
+                        //Need to read number here
+						(head->ifexist) = (char *)malloc(count*sizeof(char));
+
+						for(count = 0; buff[count++] != '\n';){
+                        	(head->ifexist)[i] = buff[i];
+						}
+						(head->ifexist)[count] = NULLBYTE;
+                        //Index is now at beginning of next header value
+                        buff += count + 1;
+						*index += count;
+                        valid = true;
+
+                        #ifdef DEBUG
+                        printf("reqParse: If-exists is the string: %s\n", (head->ifexist));
+                        printf("reqParse: Input is valid == %d\n", valid);
+                        #endif
+                        break;*/
+                }
+            }
+        if(!valid){
+            perror("head parse: Bad header value\n");
+            return 2;
+        }
+		else
+		{
+            if(buff[0] == '\n')
+            {
+                printf("reqParse: End of headers. Nothing left to process\n");
+				(*index) = (*index) + 2;// start of data index
+				return 0;
+            } 
+		
+        }
+	return 1;
 }
 
 // TODO implement error checking here
