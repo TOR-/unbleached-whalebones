@@ -20,9 +20,11 @@
 
 bool verbose;
 
-typedef enum { DATA_L, TIMEOUT, IF_EXISTS} H_name;
-typedef enum {GIFT, WEASEL, LIST} Mode;
+typedef enum {DATA_L, TIMEOUT, IF_EXISTS} H_name;
 typedef enum {ALLOC_FAIL = -1, } Error;
+typedef enum {GIFT, WEASEL, LIST} Mode_t;
+extern const char * mode_strs[];
+extern const char * header_name[];
 
 typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
@@ -33,7 +35,7 @@ typedef struct head{ // Should members be character types?? Change before/after?
 } Header;
 
 typedef struct req{
-    Mode cmdRx;
+    Mode_t cmdRx;
     char *filepath;
     Header *header;
 } Request;
@@ -59,19 +61,15 @@ void insert_header_array(Header_array_t *a, Header_t element);
 void free_header_array(Header_array_t *a);
 
 
-typedef enum {GIFT, WEASEL, LIST} Mode_t;
-extern const char * mode_strs[];
-extern const char * header_name[];
-typedef enum h_name { DATA_L, TIMEOUT, IF_EXISTS} H_name;
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
 
-FILE* file_parameters(const char *filepath, long int *file_size);
+FILE* file_parameters(char *filepath, long int *file_size);
 int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
 
 
-bool parse_command(char * buff, Mode * cmdRx, int * index);
+bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 int parse_header(char * buff, Header * head, int * index);
 
