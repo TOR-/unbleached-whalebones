@@ -23,7 +23,7 @@ bool verbose;
 typedef enum {GIFT, WEASEL, LIST} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
-typedef enum h_name { DATA_L, TIMEOUT, IF_EXISTS} H_name;
+typedef enum { DATA_L, TIMEOUT, IF_EXISTS} H_name;
 
 typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
@@ -62,7 +62,7 @@ void free_header_array(Header_array_t *a);
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
 
-FILE* file_parameters(const char *filepath, long int *file_size);
+FILE* file_parameters(char *filepath, long int *file_size);
 int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
 
 

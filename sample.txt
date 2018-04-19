@@ -1,4 +1,4 @@
-GIFT /mnt/c/Users/Eoghan/Documents/LinuxStuff/unbleached-whalebones
+GIFT .
 Data-length:4321
 Timeout:9876
 
