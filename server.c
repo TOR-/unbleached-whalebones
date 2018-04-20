@@ -135,7 +135,7 @@ int main()
             {    
                 if(retVal > 1){ 
                     printf("Parse Req: Error\n");
-                    //send status function( retVal);
+                    if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
                     break;
                 }
             }
@@ -268,14 +268,14 @@ static int send_status(Status_code status, SOCKET connectSocket)
     //hold buffer to send status to client
     char * buff;
 
-    str_size = strlen((const char *)status_descriptions[status/100][status%100]);
+    str_size = strlen((const char *)status_descriptions[status - 1]);
     //+2 to store '\0' and '\n'
-    buff = (const char *)malloc((str_size + 1)*sizeof(char));
+    buff = (char *)malloc((str_size + 1)*sizeof(char));
     
-    strcpy(buff, (char *)status_descriptions[status/100][status%100]);
+    strcpy(buff, (char *)status_descriptions[status - 1]);
     buff[str_size] = '\n';
 
     send(connectSocket, buff, str_size + 2, 0);
-    
+
     return 0;
 }
