@@ -177,7 +177,7 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 //Returns true for valid command, 0 for invalid.
 //Sets cmdRx to mode of operation. Stores filepath.
 //Increments buff to next alphanumeric character.
-bool parse_command(char * buff, Mode * cmdRx, int * index)
+bool parse_command(char * buff, Mode_t * cmdRx, int * index)
 {
 	int count = 0;
 	char * cmdbuff;
@@ -233,7 +233,9 @@ int parse_filepath(char * buff, char ** filepath, int * index)
 	return 0;
 
 }
-
+/* <buff>	points to first header in received buffer
+ * <head>	pointer to Header structure to populate wth parsed values 
+ * <index>	pointer to integer that contains index of beginning of current header being processed */
 int parse_header(char * buff, Header * head, int * index)
 {
 	int count = 0;
@@ -327,13 +329,15 @@ int parse_header(char * buff, Header * head, int * index)
 }
 
 // TODO implement error checking here
-void init_header_array(Header_array_t *a, size_t initial) {
+void init_header_array(Header_array_t *a, size_t initial) 
+{
 	a->array = (Header_t *)malloc(initial * sizeof(Header_t));
 	a->used = 0;
 	a->size = initial;
 }
 
-void insert_header_array(Header_array_t *a, Header_t element) {
+void insert_header_array(Header_array_t *a, Header_t element) 
+{
 	// a->used is the number of used entries, because a->array[a->used++] 
 	// updates a->used only *after* the array has been accessed.
 	// Therefore a->used can go up to a->size
@@ -344,7 +348,8 @@ void insert_header_array(Header_array_t *a, Header_t element) {
 	a->array[a->used++] = element;
 }
 
-void free_header_array(Header_array_t *a) {
+void free_header_array(Header_array_t *a) 
+{
 	free(a->array);
 	a->array = NULL;
 	a->used = a->size = 0;
