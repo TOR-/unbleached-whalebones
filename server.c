@@ -31,7 +31,8 @@
 #define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
 #define ENDMARK 10         // the newline character
 
-int parse_request(Request *reqRx, Header *headerRx, char *request);
+static int send_status(Status_code,  SOCKET);
+int parse_request(Request * , Header * , char * );
 //char * check_parse_error(int error, char * err_msg);
 
 //char * check_parse_error(int error, char * err_msg)
@@ -58,7 +59,9 @@ int main()
     char response[MAXRESPONSE+1]; // array to hold our response
     char welcome[] = "Welcome to the server\n";
     char goodbye[] = "Welcome to the server\n";
-
+    Header headerRx;
+    Request reqRx;
+    
 // ============== SERVER SETUP ===========================================
 
     listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
@@ -79,14 +82,16 @@ int main()
 
 
 // ============== RECEIVE REQUEST ======================================
-    
-    Request reqRx;
-    Header headerRx;
-    reqRx.header = &headerRx; //req member now points to header structure
-    
+
     // Loop to receive data from the client, until the end marker is found
     while (!stop)   // loop is controlled by the stop flag
     {
+        headerRx.data_length = 0;
+        headerRx.timeout = 0;
+        reqRx.cmdRx = INVALID;
+        reqRx.filepath = NULL;
+        reqRx.header = &headerRx;
+
         //SET REQUEST ARRAY ELEMENTS TO NULL
         // Wait to receive bytes from the client, using the recv function
         // recv() arguments: socket identifier, array to hold received bytes,
@@ -112,21 +117,30 @@ int main()
             // Print details of the request
             printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
             
+            /*================================================
+            ========Parse the request received================
+            ================================================*/
+
             if(!parse_command(request, &(reqRx.cmdRx), &index))
             {
-                perror("parse req: Invalid command\n");
-                return 0;
+                printf("parse req: Invalid command\n");
+                printf("parse req: %d\n", S_COMMAND_NOT_RECOGNISED);
+                if(!send_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) printf("main: Error status sent\n");
+                break;
             }
-            //Switch case for all problems
+
             parse_filepath(request, &(reqRx.filepath), &index);
             
-            while((retVal = parse_header(request, &headerRx, &index))){
-                if(retVal > 1) 
+            while((retVal = parse_header(request, &headerRx, &index)))
+            {    
+                if(retVal > 1){ 
                     printf("Parse Req: Error\n");
+                    //send status function( retVal);
+                    break;
+                }
             }
-            //printf("\nindex now equals = %d\n", index);
         }
-        
+            //================================================
     } // end of while loop
     
     //INDEX STORES INDEX OF START OF DATA
@@ -231,13 +245,13 @@ int list_server(Request reqRx, Header headerRx, SOCKET connectSocket)
     DIR *dp;
     struct dirent *ep;
     dp = opendir(reqRx.filepath);
-    int char_count = 0;
+    int count = 0;
 
     if(dp != NULL)
     {
         while(ep = readdir(dp)){
             fprintf(stdout, "%s\n", ep->d_name);
-            count += strlen(ep->name);
+            count += strlen(ep->d_name);
         }
         closedir(dp);
     }
@@ -245,5 +259,23 @@ int list_server(Request reqRx, Header headerRx, SOCKET connectSocket)
     {
         fprintf(stderr, "Can't open the directory\n");
     }
+    return 0;
+}
+
+static int send_status(Status_code status, SOCKET connectSocket)
+{
+    int i, str_size;
+    //hold buffer to send status to client
+    char * buff;
+
+    str_size = strlen((const char *)status_descriptions[status/100][status%100]);
+    //+2 to store '\0' and '\n'
+    buff = (const char *)malloc((str_size + 1)*sizeof(char));
+    
+    strcpy(buff, (char *)status_descriptions[status/100][status%100]);
+    buff[str_size] = '\n';
+
+    send(connectSocket, buff, str_size + 2, 0);
+    
     return 0;
 }
