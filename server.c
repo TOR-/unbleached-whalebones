@@ -22,6 +22,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <limits.h>
 
 #include "application.h"
 #include "CS_TCP.h"
@@ -40,7 +42,7 @@ int parse_request(Request *reqRx, Header *headerRx, char *request);
 //int send_error_response(int status_code, SOCKET connectSocket);
 //int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 //int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket;
-//int list_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+int list_server(Request reqRx, SOCKET connectSocket);
 
 int main()
 {
@@ -138,7 +140,7 @@ int main()
     #endif  
 
     //testing function call
-    list_server(reqRx, headerRx, connectSocket);
+    list_server(reqRx, connectSocket);
 
     // If we received a request, then we send a response
     if (numRx > 0)
@@ -225,25 +227,61 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 }
 
 */
-int list_server(Request reqRx, Header headerRx, SOCKET connectSocket)
+int list_server(Request reqRx, SOCKET connectSocket)
 {
 
     DIR *dp;
-    struct dirent *ep;
-    dp = opendir(reqRx.filepath);
-    int char_count = 0;
+    struct dirent *ep; 
+    int char_count = 0; // counts length of list to send
+    char dir_name[100]; // large enough to store full file path
+    char *response = NULL; // to be realloc memory
+    int retVal = 0;
+    
+    strcat(dir_name, "Server_Files/");
 
+    if(strcmp(reqRx.filepath, ".")) // if subdirectory required append to file path
+    {   
+        strcat(dir_name, reqRx.filepath);
+        dir_name[strlen(dir_name)-1] = '\0'; //remove extra SPACE character
+    }
+
+    dp = opendir(dir_name); // open directory
+    //include length for joe
     if(dp != NULL)
     {
-        while(ep = readdir(dp)){
-            fprintf(stdout, "%s\n", ep->d_name);
-            count += strlen(ep->name);
+        int index = 0;
+        while((ep = readdir(dp)))
+        {
+            if (ep->d_name[0] != '.')
+            { 
+                char_count += strlen(ep->d_name);
+                response = (char *)realloc(response, char_count);
+                index += sprintf(response + index, "%s\n", ep->d_name);
+            }
         }
         closedir(dp);
     }
     else
     {
         fprintf(stderr, "Can't open the directory\n");
+        //SEND ERROR RESPONSE
     }
+
+    // SEND POSITIVE RESPONSE
+
+    char *dir_list = (char *)malloc(char_count + 3);
+
+    sprintf(dir_list, "%d\n%s", char_count, response);
+
+    printf("response array = |%s|\n", dir_list);
+
+    retVal = send(connectSocket, dir_list, strlen(dir_list), 0);  // send bytes
+
+    if( retVal == -1)  // check for error
+    {
+        printf("LIST: Error sending response\n%s\n", gai_strerror(errno));
+    }
+    else printf("Sent directory list message of %d bytes\n", retVal);
+
     return 0;
 }
