@@ -26,25 +26,21 @@ int weasel_request(char ** requestbuf, char * filepath);
 int list_request(char ** requestbuf, char * filepath);
 int (*mode_request_funs[])(char **, char *) = {gift_request, weasel_request, list_request};
 /* Mode-specific request dealiing with */
-int gift_response(char * remainder, SOCKET sockfd, char * filepath);
-int weasel_response(char * remainder, SOCKET sockfd, char * filepath);
-int list_response(char * remainder, SOCKET sockfd, char * filepath);
-int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath) = {gift_response, weasel_response, list_response};
+int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*);
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*);
+int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*);
+int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*) = {gift_response, weasel_response, list_response};
 
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
 #define READ_ONLY "r"
 #define MAXRESPONSE 1024
 
-#define HEADER_SEPARATOR ':'
-#define HEADER_TERMINATOR '\n'
-#define STATUS_SEPARATOR " "
-#define STATUS_TERMINATOR "\n"
-
 FILE * file_parameters(char * filepath, long int *file_size);
 char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
+char * header_search(char * target_header, Header_array_t * header_array);
 
 int main(int argc, char ** argv)
 {
@@ -75,7 +71,7 @@ int main(int argc, char ** argv)
 	// Construct request
 	if(0 != request(mode, &requestbuf, filepath))
 		return EXIT_FAILURE;
-	if(verbose)printf("client: sending request:\n>>>\n%s\n<<<\n", requestbuf);
+	if(verbose)printf("client: sending request:\n>>>%s<<<\n", requestbuf);
 
 	// Connect to server
 	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
@@ -101,38 +97,6 @@ int main(int argc, char ** argv)
 /* =========================================================================
  * Utility functions for processing responses from the server
  * ========================================================================= */
-
-/* Populates fields in <header> with first header found in <buf>
- * Returns pointer to the end of the header + 1 (skip \n) or NULL if not found */
-char * extract_header(char * buf, Header_array_t * header_array, bool * finished)
-{
-	char * sep = buf, * term = buf; // Position of substring in string
-	Header_t header;
-	/*
-	if(0 == strncmp(buf, (char *)HEADER_TERMINATOR, 1))
-	*/
-	if(*buf == HEADER_TERMINATOR)
-	{
-		*finished = true;
-		return buf + 1;
-	}
-	if(NULL == (sep = strchr(buf, HEADER_SEPARATOR))
-			|| NULL == (term = strchr(buf, HEADER_TERMINATOR)))
-	{
-		fprintf(stderr, "extract_header: header not found in %s.\n", buf);
-		return NULL;
-	}
-	if(NULL == (header.name = strndup(buf, sep - buf))
-			|| NULL == (header.value = strndup(sep + 1, term - sep - 1)))
-	{
-		fprintf(stderr, "extract_header: no memory for header %s.\n", buf);
-		return NULL;
-	}
-	if(verbose) printf("extract_header: header %s read, value %s.\n",
-			header.name, header.value);
-	insert_header_array(header_array, header);
-	return term + 1;
-}
 
 /* Extracts a status number and description from a buffer <buf> */
 char * extract_status(char * buf, char ** description, int *status_code)
@@ -190,24 +154,29 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 
 	char * last_term = pos; // Position of last HEADER_TERMINATOR found
 	int spaces = 0;
-	for(n_headers = 0; false == headers_finished && ret > 0 && *(last_term + 1) != '\n';)
+	for(n_headers = 0; false == headers_finished && ret > 0;)
 	{
-		// Copy unprocessed data into beginning of responsebuf
-		// Receive <= (MAXRESPONSE - last_term) bytes, 
-		// Append to responsebuf
-
-		// Empty spaces to fill from last loop ( +1 for \n )
-		spaces = last_term - responsebuf + 1;
 		memmove(responsebuf, last_term + 1, MAXRESPONSE - spaces);
+		if('\n' == *responsebuf)
+		{
+			headers_finished = true;
+			break;
+		}
 		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
 		// TODO zero unused space in responsebuf
-		// find all headers in buffer
 		for(pos = responsebuf; false == headers_finished && NULL != pos && *(last_term + 1) != '\n'; n_headers++)
 		{
 			// headers not finished, header was found
-			//responsebuf = pos;
-			last_term = pos;//responsebuf;
+			// save position of last terminator found in headers
+			last_term = pos;
 			pos = extract_header(pos, &headers, &headers_finished);
+		}
+		// Remaining unprocessed data
+		spaces = last_term + 1 - responsebuf;
+		if(MAXRESPONSE == spaces) // No header has been processed
+		{
+			fprintf(stderr, "response: header too long for processing.\n");
+			exit(EXIT_FAILURE);
 		}
 	}
 	if(verbose) printf("client: finished receiveing headers.\n");
@@ -229,18 +198,18 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 	if(verbose) 
 		printf("client: entering mode-specific response processing.\n Mode: %s.\n", 
 				mode_strs[mode]);
-	mode_response_funs[mode](last_term + 1, sockfd, filepath);
+	mode_response_funs[mode](last_term + 1, sockfd, filepath, &headers);
 
 	free_header_array(&headers);
 	free(responsebuf);
 	return EXIT_SUCCESS;
 }
 
-int gift_response(char * remainder, SOCKET sockfd, char * filepath)
+int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	return EXIT_SUCCESS;
 }
-int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	FILE * file = fopen(filepath, "w+b");
 	if( NULL == file )
@@ -267,8 +236,51 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
 	}
 	return EXIT_SUCCESS;
 }
-int list_response(char * remainder, SOCKET sockfd, char * filepath)
+int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
+	long int data_length = -1;
+	int remainder_length;
+	int check;
+	int buffer_size;
+	int nrx;
+	int i;
+	
+	if(verbose)
+		printf("%zu\n",headers->used);
+	
+	for(i = 0; i < headers->used ; i++)
+	{
+		check = strcmp(headers->array[i].name,"Data-length");
+		if(check == 0)
+		{
+			data_length = atoi( headers->array->value );
+			break;
+		}
+	}
+	if( data_length < 0 )
+	{
+		printf("List Response: Error Data Length not found\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	remainder_length = strlen(remainder);
+	
+	if(verbose)
+	{
+		printf("Your boy here printing out da list of all dem files\n");
+		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
+	}
+	printf("%s\n", remainder);
+	
+	if( data_length > remainder_length )
+	{
+		buffer_size = data_length - remainder_length;
+		
+		uint8_t * buf = malloc( buffer_size );
+		nrx = recv(sockfd, buf, buffer_size, 0);
+		printf("%s", (char *)buf +1);
+	}
+	
 	return EXIT_SUCCESS;
 }
 /* ===========================================================================
@@ -292,7 +304,11 @@ static int request(Mode_t mode, char ** requestbuf, char * filepath)
 	}
 	// Append headers as appropriate
 	// Headers common to all requests go here
-	append_header(requestbuf, "Date", "2018-04-07T14:31:32Z");
+	//time_t now;
+    //time(&now);
+    //char buf[sizeof "2018-04-01T01:00:09Z"];
+    //strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+	//append_header(requestbuf, "Date", buf);
 
 	// Call individual request constructors
 	if(0 != mode_request_funs[mode](requestbuf, filepath))
@@ -330,8 +346,10 @@ int gift_request(char ** requestbuf, char * filepath)
 		printf("GIFT_CLIENT: Error opening file for transmission\n");
 		return EXIT_FAILURE;
 	}
-	
-	//Can add in function to append headers at a later date
+	char data_len_buf[20]; // Probably big enough
+	snprintf(data_len_buf, 20, "%d", size_of_file);
+	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
+
 	finish_headers(requestbuf);
 	
 	
