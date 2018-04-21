@@ -36,11 +36,6 @@ int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath) = 
 #define READ_ONLY "r"
 #define MAXRESPONSE 1024
 
-#define HEADER_SEPARATOR ':'
-#define HEADER_TERMINATOR '\n'
-#define STATUS_SEPARATOR " "
-#define STATUS_TERMINATOR "\n"
-
 FILE * file_parameters(char * filepath, long int *file_size);
 char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
@@ -75,7 +70,7 @@ int main(int argc, char ** argv)
 	// Construct request
 	if(0 != request(mode, &requestbuf, filepath))
 		return EXIT_FAILURE;
-	if(verbose)printf("client: sending request:\n>>>\n%s\n<<<\n", requestbuf);
+	if(verbose)printf("client: sending request:\n>>>%s<<<\n", requestbuf);
 
 	// Connect to server
 	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
@@ -101,38 +96,6 @@ int main(int argc, char ** argv)
 /* =========================================================================
  * Utility functions for processing responses from the server
  * ========================================================================= */
-
-/* Populates fields in <header> with first header found in <buf>
- * Returns pointer to the end of the header + 1 (skip \n) or NULL if not found */
-char * extract_header(char * buf, Header_array_t * header_array, bool * finished)
-{
-	char * sep = buf, * term = buf; // Position of substring in string
-	Header_t header;
-	/*
-	if(0 == strncmp(buf, (char *)HEADER_TERMINATOR, 1))
-	*/
-	if(*buf == HEADER_TERMINATOR)
-	{
-		*finished = true;
-		return buf + 1;
-	}
-	if(NULL == (sep = strchr(buf, HEADER_SEPARATOR))
-			|| NULL == (term = strchr(buf, HEADER_TERMINATOR)))
-	{
-		fprintf(stderr, "extract_header: header not found in %s.\n", buf);
-		return NULL;
-	}
-	if(NULL == (header.name = strndup(buf, sep - buf))
-			|| NULL == (header.value = strndup(sep + 1, term - sep - 1)))
-	{
-		fprintf(stderr, "extract_header: no memory for header %s.\n", buf);
-		return NULL;
-	}
-	if(verbose) printf("extract_header: header %s read, value %s.\n",
-			header.name, header.value);
-	insert_header_array(header_array, header);
-	return term + 1;
-}
 
 /* Extracts a status number and description from a buffer <buf> */
 char * extract_status(char * buf, char ** description, int *status_code)
@@ -339,8 +302,10 @@ int gift_request(char ** requestbuf, char * filepath)
 		printf("GIFT_CLIENT: Error opening file for transmission\n");
 		return EXIT_FAILURE;
 	}
-	
-	//Can add in function to append headers at a later date
+	char data_len_buf[20]; // Probably big enough
+	snprintf(data_len_buf, 20, "%d", size_of_file);
+	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
+
 	finish_headers(requestbuf);
 	
 	
