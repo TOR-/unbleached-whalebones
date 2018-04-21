@@ -21,12 +21,11 @@
 
 bool verbose;
 
-
-typedef enum {DATA_L, TIMEOUT, IF_EXISTS} H_name;
-typedef enum {ALLOC_FAIL = -1, } Error;
+//typedef enum {ALLOC_FAIL = -1, } Error;
 typedef enum {GIFT, WEASEL, LIST} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
+typedef enum { DATA_L, TIMEOUT, IF_EXISTS} H_name;
 
 typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
