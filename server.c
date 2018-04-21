@@ -33,7 +33,8 @@
 #define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
 #define ENDMARK 10			// the newline character
 
-int parse_request(Request *reqRx, Header *headerRx, char *request);
+static int send_status(Status_code,  SOCKET);
+int parse_request(Request * , Header * , char * );
 //char * check_parse_error(int error, char * err_msg);
 
 //char * check_parse_error(int error, char * err_msg)
@@ -122,7 +123,6 @@ int main()
 			//Switch case for all problems
 			parse_filepath(request, &(reqRx.filepath), &index);
 
-			//while((
 			retVal = parse_header(request, &headerRx, &index);
 				if(retVal > 1) 
 					printf("Parse Req: Error\n");
@@ -285,4 +285,21 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	else printf("Sent directory list message of %d bytes\n", retVal);
 
 	return 0;
+}
+static int send_status(Status_code status, SOCKET connectSocket)
+{
+    int i, str_size;
+    //hold buffer to send status to client
+    char * buff;
+
+    str_size = strlen((const char *)status_descriptions[status - 1]);
+    //+2 to store '\0' and '\n'
+    buff = (char *)malloc((str_size + 1)*sizeof(char));
+    
+    strcpy(buff, (char *)status_descriptions[status - 1]);
+    buff[str_size] = '\n';
+
+    send(connectSocket, buff, str_size + 2, 0);
+
+    return 0;
 }
