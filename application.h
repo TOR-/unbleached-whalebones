@@ -9,8 +9,9 @@
 #define END_HEAD ':'
 #define NUM_MODES 3
 // REMEMBER TO CHANGE THIS BACK
-#define NUM_HEAD 3//(sizeof(header_name)/sizeof(*header_name) )
+#define NUM_HEAD 3
 #define MAX_HEADER_SIZE 20
+#define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
 
@@ -20,6 +21,7 @@
 
 bool verbose;
 
+//typedef enum {ALLOC_FAIL = -1, } Error;
 typedef enum {GIFT, WEASEL, LIST} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
@@ -62,6 +64,7 @@ void free_header_array(Header_array_t *a);
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
 
+
 FILE* file_parameters(char *filepath, long int *file_size);
 int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
 
@@ -103,6 +106,9 @@ typedef enum {
 	S_CANNOT_SATISFY_REQUEST						= 410,
 	S_UNRECOGNISED_ENCODING						
 } Status_code;
+
+//Client error status descriptions
+//see application.c
 extern const char * status_descriptions[];
 
 #endif
