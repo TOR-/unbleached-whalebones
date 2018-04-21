@@ -190,24 +190,29 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 
 	char * last_term = pos; // Position of last HEADER_TERMINATOR found
 	int spaces = 0;
-	for(n_headers = 0; false == headers_finished && ret > 0 && *(last_term + 1) != '\n';)
+	for(n_headers = 0; false == headers_finished && ret > 0;)
 	{
-		// Copy unprocessed data into beginning of responsebuf
-		// Receive <= (MAXRESPONSE - last_term) bytes, 
-		// Append to responsebuf
-
-		// Empty spaces to fill from last loop ( +1 for \n )
-		spaces = last_term - responsebuf + 1;
 		memmove(responsebuf, last_term + 1, MAXRESPONSE - spaces);
+		if('\n' == *responsebuf)
+		{
+			headers_finished = true;
+			break;
+		}
 		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
 		// TODO zero unused space in responsebuf
-		// find all headers in buffer
 		for(pos = responsebuf; false == headers_finished && NULL != pos && *(last_term + 1) != '\n'; n_headers++)
 		{
 			// headers not finished, header was found
-			//responsebuf = pos;
-			last_term = pos;//responsebuf;
+			// save position of last terminator found in headers
+			last_term = pos;
 			pos = extract_header(pos, &headers, &headers_finished);
+		}
+		// Remaining unprocessed data
+		spaces = last_term + 1 - responsebuf;
+		if(MAXRESPONSE == spaces) // No header has been processed
+		{
+			fprintf(stderr, "response: header too long for processing.\n");
+			exit(EXIT_FAILURE);
 		}
 	}
 	if(verbose) printf("client: finished receiveing headers.\n");
@@ -292,7 +297,11 @@ static int request(Mode_t mode, char ** requestbuf, char * filepath)
 	}
 	// Append headers as appropriate
 	// Headers common to all requests go here
-	append_header(requestbuf, "Date", "2018-04-07T14:31:32Z");
+	//time_t now;
+    //time(&now);
+    //char buf[sizeof "2018-04-01T01:00:09Z"];
+    //strftime(buf, sizeof buf, "%FT%TZ", gmtime(&now));
+	//append_header(requestbuf, "Date", buf);
 
 	// Call individual request constructors
 	if(0 != mode_request_funs[mode](requestbuf, filepath))
