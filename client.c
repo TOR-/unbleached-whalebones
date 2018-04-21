@@ -236,30 +236,31 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 	}
 	return EXIT_SUCCESS;
 }
+
 int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	long int data_length = -1;
 	int remainder_length;
-	int check;
 	int buffer_size;
 	int nrx;
-	int i;
+	char * data_length_str = NULL;
+	char target_header[] = "Data-length";
 	
 	if(verbose)
-		printf("%zu\n",headers->used);
+		printf("Number of headers: %zu\n",headers->used);
 	
-	for(i = 0; i < headers->used ; i++)
+	data_length_str = header_search(target_header, headers);
+	if( data_length_str == NULL )
 	{
-		check = strcmp(headers->array[i].name,"Data-length");
-		if(check == 0)
-		{
-			data_length = atoi( headers->array->value );
-			break;
-		}
+		printf("List Response: Error Data Length Header not found\n");
+		exit(EXIT_FAILURE);
 	}
+		
+	data_length = atoi( data_length_str );
+	
 	if( data_length < 0 )
 	{
-		printf("List Response: Error Data Length not found\n");
+		printf("List Response: Error Data Length was negative\n");
 		exit(EXIT_FAILURE);
 	}
 	
@@ -272,6 +273,8 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 	}
 	printf("%s\n", remainder);
 	
+	//Currently assuming that the rest of the data will be stored in the TCP buffer
+	//May need to allow for multiple blocks...
 	if( data_length > remainder_length )
 	{
 		buffer_size = data_length - remainder_length;
@@ -280,6 +283,9 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 		nrx = recv(sockfd, buf, buffer_size, 0);
 		printf("%s", (char *)buf +1);
 	}
+	
+	free(buf);
+	free(data_length_str);
 	
 	return EXIT_SUCCESS;
 }
@@ -466,3 +472,21 @@ char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * p
 	return filepath;
 }
 
+//Returns the value associated with the target header as a string
+//Returns NULL if target header is not found
+char * header_search(char * target_header, Header_array_t * headers)
+{
+	int i, check = -1;
+	char* needle;
+	
+	for(i = 0; i < headers->used ; i++)
+	{
+		check = strcmp(headers->array[i].name,target_header);
+		if(check == 0)
+		{
+			needle = malloc( strlen(headers->array[i].name) );
+			return needle;
+		}
+	}
+	return NULL;
+}
