@@ -1,6 +1,8 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "application.h"
 
 const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
@@ -98,12 +100,12 @@ int finish_headers(char ** headers)
 		fprintf(stderr, "finish_headers: failed to reallocate memory for headers.\n");
 		return EXIT_FAILURE;
 	}
-	if(0 >= sprintf(newheaders, "%s\n", *headers))
+	if(NULL == (*headers = strncat(newheaders, "\n", 1)))
 	{
 		fprintf(stderr, "finish_headers: failed to finish headers.\n");
 		return EXIT_FAILURE;
 	}
-	*headers = newheaders;
+	//*headers = newheaders;
 	return EXIT_SUCCESS;
 }
 
@@ -122,11 +124,11 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 	else
 	{
 		if(verbose)
-			printf("Checking file parameters");
+			printf("Checking file parameters.\n");
 		fseek(input_file, 0L, SEEK_END);
 		*size_of_file = ftell(input_file);
 		if(verbose)
-			printf("File is %ld bytes long", *size_of_file);
+			printf("File is %ld bytes long.\n", *size_of_file);
 		if(*size_of_file < 0)
 		{
 			perror("Error in file_parameters: File size is less than zero: ");
@@ -142,15 +144,18 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 //Function to append the data to the request
 int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 {	
-	long int header_length = strlen(*request_buf);
+	long int header_length = strlen(*request_buf) + 1;
 
-	char* data = (char *) malloc(size_of_file);
+	uint8_t* data = malloc(size_of_file + 1);
 	if(data == NULL)
 	{
 		perror("Error appending data: ");
 		return EXIT_FAILURE;
 	}
-	//Reallocate memory to account for the headers
+	data[size_of_file] = '\0';
+	// Reallocate memory to account for the headers
+	// Should be rewritten with temporary pointer to prevent losing access 
+	// 	to memory
 	*request_buf = (char *) realloc(*request_buf, size_of_file + header_length);
 	if(request_buf == NULL)
 	{
@@ -159,18 +164,14 @@ int append_data(FILE* input_file, char** request_buf, long int size_of_file)
 	}
 
 	//Read in data from the file
-	fread(data,1,size_of_file,input_file);
-	strcat(*request_buf,data);
-
-	if(data == NULL)
+	if(size_of_file != fread(data, 1, size_of_file, input_file))
 	{
-		printf("Error in reading the file");
+		fprintf(stderr, "append_data: error in reading the file: %s", 
+				strerror(ferror(input_file)));
 		return EXIT_FAILURE;
 	}
-
+	strcat(*request_buf, (char *)data);
 	free(data);
-	return 0;
-
 	return EXIT_SUCCESS;
 }
 
@@ -199,7 +200,7 @@ bool parse_command(char * buff, Mode_t * cmdRx, int * index)
 	
 	cmdbuff[count] = NULLBYTE;
 
-	for(i = 0, valid = false; i < NUM_MODES; i++){
+	for(i = 0, valid = false; i < NUM_MODE; i++){
         if(!strcmp(cmdbuff, mode_strs[i]))
         {
             * cmdRx = i;
@@ -233,99 +234,129 @@ int parse_filepath(char * buff, char ** filepath, int * index)
 	return 0;
 
 }
+
+/* Populates fields in <header> with first header found in <buf>
+ * Returns pointer to the end of the header + 1 (skip \n) or NULL if not found */
+char * extract_header(char * buf, Header_array_t * header_array, bool * finished)
+{
+	char * sep = buf, * term = buf; // Position of substring in string
+	Header_t header;
+	if(*buf == HEADER_TERMINATOR)
+	{
+		*finished = true;
+		return buf + 1;
+	}
+	if(NULL == (sep = strchr(buf, HEADER_SEPARATOR))
+			|| NULL == (term = strchr(buf, HEADER_TERMINATOR)))
+	{
+		fprintf(stderr, "extract_header: header not found in >>%s<<.\n", buf);
+		return NULL;
+	}
+	if(NULL == (header.name = strndup(buf, sep - buf))
+			|| NULL == (header.value = strndup(sep + 1, term - sep - 1)))
+	{
+		fprintf(stderr, "extract_header: no memory for header %s.\n", buf);
+		return NULL;
+	}
+	if(verbose) printf("extract_header: header %s read, value %s.\n",
+			header.name, header.value);
+	insert_header_array(header_array, header);
+	return term + 1;
+}
+
 /* <buff>	points to first header in received buffer
  * <head>	pointer to Header structure to populate wth parsed values 
  * <index>	pointer to integer that contains index of beginning of current header being processed */
 int parse_header(char * buff, Header * head, int * index)
 {
+	// !!!!!!!!!!!!!!!!!!!TODO remove this
+	verbose = true;
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	int count = 0;
 	bool valid = false;
-	char headbuff[MAX_HEADER_SIZE];
-	
-	for(count = 0; buff[*index + count] != ':'; count++){
-		headbuff[count] = buff[*index + count];
-	}
-	headbuff[count++] = NULLBYTE;
-	
-	*index += count;
-	buff = buff + *index;
-	
-	for(int i = 0; i < NUM_HEAD; i++)
-            if(!strcmp(headbuff, header_name[i]))
-            {
-                switch(i)
-                {
-                    case DATA_L:
-                        //Count amount of char in header value
-                        for(count = 0; buff[count++] != '\n';)    
-                        //Need to read number here
-                        (head->data_length) = strtol(buff, NULL, DEC);
-                        //Index is now at next header value
-						buff += count + 1;
-						*index += count;
-                        valid = true;
-                        
-                        #ifdef DEBUG
-                        printf("reqParse: Data length is %ld bytes\n", (head->data_length));
-                        printf("reqParse: Input is valid == %d\n", valid);
-                        #endif
-
-                        break;
-
-                    case TIMEOUT:
-                        //Count amount of char in header value
-                        for(count = 0; buff[count++] != '\n';)    
-                        //Need to read number here
-                        (head->timeout) = strtol(buff, NULL, DEC);
-                        //Index is now at beginning of next header value
-                        buff += count + 1;
-						*index += count;
-                        valid = true;
-                        
-                        #ifdef DEBUG
-                        printf("reqParse: Timeout is %ld bytes\n", (head->timeout));
-                        printf("reqParse: Input is valid == %d\n", valid);
-                        #endif
-						//printf("buff points to = %c\n", buff[0]);
-                        break;
-
-                    /*case IF_EXISTS:
-                        //Count amount of char in header value
-                        for(count = 0; buff[count++] != '\n';)    
-                        //Need to read number here
-						(head->ifexist) = (char *)malloc(count*sizeof(char));
-
-						for(count = 0; buff[count++] != '\n';){
-                        	(head->ifexist)[i] = buff[i];
-						}
-						(head->ifexist)[count] = NULLBYTE;
-                        //Index is now at beginning of next header value
-                        buff += count + 1;
-						*index += count;
-                        valid = true;
-
-                        #ifdef DEBUG
-                        printf("reqParse: If-exists is the string: %s\n", (head->ifexist));
-                        printf("reqParse: Input is valid == %d\n", valid);
-                        #endif
-                        break;*/
-                }
-            }
-        if(!valid){
-            perror("head parse: Bad header value\n");
-            return S_HEADER_NOT_RECOGNISED;
-        }
-		else
+	/*
+		char * headbuff = calloc(1, MAX_HEADER_SIZE+1);
+		if(NULL == headbuff)
 		{
-            if(buff[0] == '\n')
-            {
-                printf("reqParse: End of headers. Nothing left to process\n");
-				(*index) = (*index) + 2;// start of data index
-				return 0; //End of headers recognised
-            } 
+			fprintf(stderr, "%s: couldn't allocate memory for header.\n", 
+					__FUNCTION__);
+			return EXIT_FAILURE;
+		}
+		for(count = 0; buff[*index + count] != ':'; count++){
+			printf("[%c(%d)]", headbuff[count], count);
+			headbuff[count] = buff[*index + count];
+		}
+		headbuff[count++] = NULLBYTE;
 		
-        }
-	return 1; //more headers to be read 
+		*index += count;
+		buff = buff + *index;
+	*/
+	// Extract headers
+	Header_array_t headers;
+	bool headers_finished;
+	int n_headers;
+	init_header_array(&headers, HEADERINITBUFLEN);
+
+	char * next_start = buff + *index, * pos = buff + *index;
+	for(n_headers = 0, headers_finished = false; false == headers_finished && NULL != pos; n_headers++)
+	{
+		// headers not finished, header was found
+		// save position of last terminator found in headers
+		next_start = pos;
+		pos = extract_header(next_start, &headers, &headers_finished);
+	}
+	if(verbose) printf("%s:headers finished.\n", __FUNCTION__);
+	
+	// Process each possible header
+	for(int i = 0; i < NUM_HEAD && (size_t) i < headers.used; i++)	
+		if(!strcmp(headers.array[i].name, header_name[i]))
+		{
+			switch(i)
+			{
+				case DATA_LENGTH:
+					head->data_length = atoi(headers.array[i].value);
+					valid = true;
+
+#ifdef DEBUG
+					printf("parse_header: Data length is %ld bytes\n", (head->data_length));
+					printf("parse_header: Input is valid == %d\n", valid);
+#endif
+					break;
+				case TIMEOUT:
+					// TODO convert this function
+					//Count amount of char in header value
+					for(count = 0; buff[count++] != '\n';)    
+						//Need to read number here
+						(head->timeout) = strtol(buff, NULL, DEC);
+					//Index is now at beginning of next header value
+					buff += count + 1;
+					*index += count;
+					valid = true;
+
+#ifdef DEBUG
+					printf("parse_header: Timeout is %ld bytes\n", (head->timeout));
+					printf("parse_header: Input is valid == %d\n", valid);
+#endif
+					//printf("buff points to = %c\n", buff[0]);
+					break;
+			}
+		}
+	if(!valid){
+		perror("head parse: Bad header value\n");
+		return S_HEADER_NOT_RECOGNISED;
+	}
+	else
+	{
+		printf("%s(%d)\n", __FUNCTION__, __LINE__);
+		if(buff[*index] == '\n')
+		{
+			printf("parse_header: End of headers. Nothing left to process\n");
+			(*index) = (*index) + 1;// start of data index
+			return 0;
+		} 
+
+	}
+	return EXIT_FAILURE;
 }
 
 // TODO implement error checking here
