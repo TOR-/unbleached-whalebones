@@ -189,9 +189,6 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 {
 	char * sep = buf, * term = buf; // Position of substring in string
 	Header_t header;
-	/*
-	if(0 == strncmp(buf, (char *)HEADER_TERMINATOR, 1))
-	*/
 	if(*buf == HEADER_TERMINATOR)
 	{
 		*finished = true;
@@ -200,7 +197,7 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 	if(NULL == (sep = strchr(buf, HEADER_SEPARATOR))
 			|| NULL == (term = strchr(buf, HEADER_TERMINATOR)))
 	{
-		fprintf(stderr, "extract_header: header not found in %s.\n", buf);
+		fprintf(stderr, "extract_header: header not found in >>%s<<.\n", buf);
 		return NULL;
 	}
 	if(NULL == (header.name = strndup(buf, sep - buf))
@@ -220,6 +217,9 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
  * <index>	pointer to integer that contains index of beginning of current header being processed */
 int parse_header(char * buff, Header * head, int * index)
 {
+	// !!!!!!!!!!!!!!!!!!!TODO remove this
+	verbose = true;
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	int count = 0;
 	bool valid = false;
 	/*
@@ -245,22 +245,15 @@ int parse_header(char * buff, Header * head, int * index)
 	int n_headers;
 	init_header_array(&headers, HEADERINITBUFLEN);
 
-	char * last_term = buff, * pos = buff;
-	for(n_headers = 0, pos = buff, headers_finished = false; 
-			false == headers_finished && NULL != pos && *(last_term + 1) != '\n';
-			n_headers++)
+	char * next_start = buff + *index, * pos = buff + *index;
+	for(n_headers = 0, headers_finished = false; false == headers_finished && NULL != pos; n_headers++)
 	{
-		if('\n' == *buff)
-		{
-			if(verbose) printf("%s:headers finished.\n", __FUNCTION__);
-			headers_finished = true;
-			break;
-		}
 		// headers not finished, header was found
 		// save position of last terminator found in headers
-		last_term = pos;
-		pos = extract_header(last_term + 1, &headers, &headers_finished);
+		next_start = pos;
+		pos = extract_header(next_start, &headers, &headers_finished);
 	}
+	if(verbose) printf("%s:headers finished.\n", __FUNCTION__);
 	
 	// Process each possible header
 	for(int i = 0; i < NUM_HEAD && (size_t) i < headers.used; i++)	

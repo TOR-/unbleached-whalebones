@@ -122,10 +122,11 @@ int main()
 			//Switch case for all problems
 			parse_filepath(request, &(reqRx.filepath), &index);
 
-			while((retVal = parse_header(request, &headerRx, &index))){
+			//while((
+			retVal = parse_header(request, &headerRx, &index);
 				if(retVal > 1) 
 					printf("Parse Req: Error\n");
-			}
+			
 			//printf("\nindex now equals = %d\n", index);
 		}
 
@@ -140,7 +141,7 @@ int main()
 #endif  
 
 	//testing function call
-	list_server(reqRx, connectSocket);
+	//list_server(reqRx, connectSocket);
 
 	// If we received a request, then we send a response
 	if (numRx > 0)

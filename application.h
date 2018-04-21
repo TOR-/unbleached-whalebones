@@ -7,7 +7,6 @@
 #define DEBUG
 
 #define END_HEAD ':'
-#define NUM_MODES 3
 // REMEMBER TO CHANGE THIS BACK
 #define NUM_HEAD 3//(sizeof(header_name)/sizeof(*header_name) )
 #define MAX_HEADER_SIZE 20
@@ -26,7 +25,7 @@ bool verbose;
 typedef enum {GIFT, WEASEL, LIST} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
-typedef enum { DATA_LENGTH, TIMEOUT, IF_EXISTS} H_name;
+typedef enum { DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
 
 typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
