@@ -1,6 +1,9 @@
 # Prerequisites
 *.d
 
+# Text Files
+*.txt
+
 # Object files
 *.o
 *.ko
@@ -55,3 +58,5 @@ dkms.conf
 server
 client
 
+# Exuberant ctags file
+tags

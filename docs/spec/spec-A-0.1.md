@@ -57,8 +57,11 @@ Gift the server with a file located at ```<filepath>```. (PUT)
   
 ```WEASEL<SPC><filepath>```  
 Weasel a file located at ```<filepath>``` from the server. (GET)  
+
 ```LIST<SPC><filepath>```  
-List all files located at ```<filepath>```.  
+List all files located at ```<filepath>```.
+- ```<filepath>``` = "." , for server working directory.
+- ```<filepath>``` = "sub-directory name", for any server subdirectories.
 
 ### STATUS:
 
