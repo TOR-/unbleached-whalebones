@@ -42,6 +42,9 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 char * extract_status(char * buf, char ** description, int *status_code);
 char * header_search(char * target_header, Header_array_t * header_array);
 
+const int BUFSIZE = 80;
+
+
 int main(int argc, char ** argv)
 {
 	char * filepath, ip[IPV4LEN];
@@ -218,7 +221,6 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 				filepath);
 		exit(EXIT_FAILURE);
 	}
-	const int BUFSIZE = 40;
 	uint8_t buf[BUFSIZE];
 	
 	// write data left in remainder
@@ -241,10 +243,11 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 {
 	long int data_length = -1;
 	int remainder_length;
-	int buffer_size;
+	int buffer_size = BUFSIZE;
+	int data_unread;
 	int nrx;
 	char * data_length_str = NULL;
-	char target_header[] = "Data-length";
+	char * target_header = "Data-length";
 	
 	if(verbose)
 		printf("Number of headers: %zu\n",headers->used);
@@ -255,7 +258,7 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 		printf("List Response: Error Data Length Header not found\n");
 		exit(EXIT_FAILURE);
 	}
-		
+	
 	data_length = atoi( data_length_str );
 	
 	if( data_length < 0 )
@@ -271,20 +274,38 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 		printf("Your boy here printing out da list of all dem files\n");
 		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
 	}
-	printf("%s\n", remainder);
 	
-	//Currently assuming that the rest of the data will be stored in the TCP buffer
-	//May need to allow for multiple blocks...
+
+	//Reads in data in chunks of size 40, as specified by the BUFFER_SIZE declaration
+	//Will only read in the stuff that is sent
+	
 	if( data_length > remainder_length )
 	{
-		buffer_size = data_length - remainder_length;
+		data_unread = data_length - remainder_length;
+		uint8_t * buf = malloc( buffer_size + 1 );
+		printf("\nData unread = %d\n", data_unread);
 		
-		uint8_t * buf = malloc( buffer_size );
-		nrx = recv(sockfd, buf, buffer_size, 0);
-		printf("%s", (char *)buf +1);
+		while( data_unread >= buffer_size )
+		{
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			printf("%s", (char *)buf );
+			data_unread = data_unread - buffer_size;
+		}
+		
+		
+		if( data_unread > 0)
+		{
+			buffer_size = data_unread;
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			buf[data_unread] = '\0';
+			printf("%s", (char *)buf );
+			data_unread = data_unread - buffer_size;
+		}
+		free(buf);
+		printf("\nData unread = %d\n", data_unread);
+
 	}
 	
-	free(buf);
 	free(data_length_str);
 	
 	return EXIT_SUCCESS;
@@ -484,7 +505,10 @@ char * header_search(char * target_header, Header_array_t * headers)
 		check = strcmp(headers->array[i].name,target_header);
 		if(check == 0)
 		{
-			needle = malloc( strlen(headers->array[i].name) );
+			needle = malloc( strlen(headers->array[i].value) );
+			needle = headers->array[i].value;
+			if( needle == NULL )
+				perror("Malloc Error in header_search: ");
 			return needle;
 		}
 	}
