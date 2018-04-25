@@ -54,24 +54,28 @@ int main()
     Header headerRx;
     Request reqRx;
 
-    do{  
+    SOCKET listenSocket = INVALID_SOCKET;  // identifier for listening socket
+    // ============== LISTENSOCKET SETUP ===========================================
+
+    listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
+    if (listenSocket == INVALID_SOCKET)  // check for error
+        return 1;       // no point in continuing
+
+    // Set up the server to use this socket and the specified port
+    retVal = TCPserverSetup(listenSocket, SERVER_PORT);
+    if (retVal < 0) // check for error
+        return 1;   // End session with err code 1
+
+    do{ 
         do{
+            //Re-init for each session
+            index = 0;
+            numRx = 0;
             // Create variables needed by this function
             // The server uses 2 sockets - one to listen for connection requests,
             // the other to make a connection with the client.
-            SOCKET listenSocket = INVALID_SOCKET;  // identifier for listening socket
+            
             SOCKET connectSocket = INVALID_SOCKET; // identifier for connection socket
-        
-        // ============== SERVER SETUP ===========================================
-
-            listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
-            if (listenSocket == INVALID_SOCKET)  // check for error
-                return 1;       // no point in continuing
-
-            // Set up the server to use this socket and the specified port
-            retVal = TCPserverSetup(listenSocket, SERVER_PORT);
-            if (retVal < 0) // check for error
-                break;   // set the flag to prevent other things happening
 
         // ============== WAIT FOR CONNECTION ====================================
 
@@ -176,11 +180,6 @@ int main()
                                     
 /*
 int send_error_response(int status_code, SOCKET connectSocket){
-	
-	
-
-
-
 
 }
 							
@@ -188,15 +187,9 @@ int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 
 use recv funvtion with FILE * as argument
 
-
-
 }
 
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
-
-
-
-
 
 }
 
@@ -249,8 +242,7 @@ static int send_status(Status_code status, SOCKET connectSocket)
 void end_connection(int connectSocket, int listenSocket)
 {
     printf("\nServer is closing the connection...\n");
-    // Close the connection socket first
+    
+    // Close the connection socket
     TCPcloseSocket(connectSocket);
-    // Then close the listening socket
-    TCPcloseSocket(listenSocket);
 }
