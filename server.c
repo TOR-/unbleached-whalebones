@@ -22,14 +22,16 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <limits.h>
 
 #include "application.h"
 #include "CS_TCP.h"
 
-#define SERVER_PORT 6666  // port to be used by the server
-#define MAXREQUEST 300      // size of request array, in bytes
-#define MAXRESPONSE 90     // size of response array (at least 35 bytes more)
-#define ENDMARK 10         // the newline character
+#define SERVER_PORT 6666	// port to be used by the server
+#define MAXREQUEST 1024		// size of request array, in bytes
+#define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
+#define ENDMARK 10			// the newline character
 
 static int send_status(Status_code,  SOCKET);
 int parse_request(Request * , Header * , char * );
@@ -38,11 +40,11 @@ void end_connection(int, int);
 
 //char * check_parse_error(int error, char * err_msg)
 // request processign functions:
- 
+
 //int send_error_response(int status_code, SOCKET connectSocket);
 //int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 //int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket;
-//int list_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+int list_server(Request reqRx, SOCKET connectSocket);
 
 int main()
 {
@@ -90,7 +92,7 @@ int main()
 			// Loop to receive data from the client, until the end marker is found
 			headerRx.data_length = 0;
 			headerRx.timeout = 0;
-			reqRx.cmdRx = INVALID;
+			reqRx.cmdRx = NUM_MODE;
 			reqRx.filepath = NULL;
 			reqRx.header = &headerRx;
 
@@ -179,44 +181,89 @@ int main()
 
 									
 /*
+
 int send_error_response(int status_code, SOCKET connectSocket){
 
 }
-							
-int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket){
+   }
 
-use recv funvtion with FILE * as argument
+   int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 
-}
-
-int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
+   use recv funvtion with FILE * as argument
 
 }
+
+
+   }
+
+   int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
+
+
+
+
+
+   }
+
 
 */
-int list_server(Request reqRx, Header headerRx, SOCKET connectSocket)
+int list_server(Request reqRx, SOCKET connectSocket)
 {
 
 	DIR *dp;
-	struct dirent *ep;
-	dp = opendir(reqRx.filepath);
-	int count = 0;
+	struct dirent *ep; 
+	int char_count = 0; // counts length of list to send
+	char dir_name[100]; // large enough to store full file path
+	char *response = NULL; // to be realloc memory
+	int retVal = 0;
 
+	strcat(dir_name, "Server_Files/");
+
+	if(strcmp(reqRx.filepath, ".")) // if subdirectory required append to file path
+	{   
+		strcat(dir_name, reqRx.filepath);
+		dir_name[strlen(dir_name)-1] = '\0'; //remove extra SPACE character
+	}
+
+	dp = opendir(dir_name); // open directory
+	//include length for joe
 	if(dp != NULL)
 	{
-		while(ep = readdir(dp)){
-			fprintf(stdout, "%s\n", ep->d_name);
-			count += strlen(ep->d_name);
+		int index = 0;
+		while((ep = readdir(dp)))
+		{
+			if (ep->d_name[0] != '.')
+			{ 
+				char_count += strlen(ep->d_name);
+				response = (char *)realloc(response, char_count);
+				index += sprintf(response + index, "%s\n", ep->d_name);
+			}
 		}
 		closedir(dp);
 	}
 	else
 	{
 		fprintf(stderr, "Can't open the directory\n");
+		//SEND ERROR RESPONSE
 	}
+
+	// SEND POSITIVE RESPONSE
+
+	char *dir_list = (char *)malloc(char_count + 3);
+
+	sprintf(dir_list, "%d\n%s", char_count, response);
+
+	printf("response array = |%s|\n", dir_list);
+
+	retVal = send(connectSocket, dir_list, strlen(dir_list), 0);  // send bytes
+
+	if( retVal == -1)  // check for error
+	{
+		printf("LIST: Error sending response\n%s\n", gai_strerror(errno));
+	}
+	else printf("Sent directory list message of %d bytes\n", retVal);
+
 	return 0;
 }
-
 static int send_status(Status_code status, SOCKET connectSocket)
 {
 	int str_size;
@@ -238,7 +285,6 @@ static int send_status(Status_code status, SOCKET connectSocket)
 
 	return 0;
 }
-
 void end_connection(int connectSocket, int listenSocket)
 {
 	printf("\nServer is closing the connection...\n");

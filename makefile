@@ -1,6 +1,6 @@
 CC:=gcc
 LIBS:=
-CFLAGS:= -Wall -Wextra -g $(LIBS)
+CFLAGS:= -Wall -Wextra -Wno-unused-parameter -g $(LIBS)
 DEPS:= CS_TCP.h application.h
 OBJS:= CS_TCP.o application.o
 
