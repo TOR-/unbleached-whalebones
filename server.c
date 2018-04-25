@@ -1,16 +1,16 @@
 /*  EEEN20060 Communication Systems
-    Simple TCP server program, to demonstrate the basic concepts,
-    using IP version 4.
+	Simple TCP server program, to demonstrate the basic concepts,
+	using IP version 4.
 
-    It listens on a specified port until a client connects.
-    Then it waits for a request from the client, and keeps trying
-    to receive bytes until it finds the end marker.
-    Then it sends a long response to the client, which includes
-    the last part of the request received.
-    Then it tidies up and stops.
+	It listens on a specified port until a client connects.
+	Then it waits for a request from the client, and keeps trying
+	to receive bytes until it finds the end marker.
+	Then it sends a long response to the client, which includes
+	the last part of the request received.
+	Then it tidies up and stops.
 
-    This program is not robust - if a problem occurs, it just
-    tidies up and exits, with no attempt to fix the problem.  */
+	This program is not robust - if a problem occurs, it just
+	tidies up and exits, with no attempt to fix the problem.  */
 
 #include <errno.h>
 #include <stdio.h>
@@ -46,138 +46,138 @@ void end_connection(int, int);
 
 int main()
 {
-    int retVal;         // return value from various functions //Count variable
-    int index = 0;      // interfunction index reference point
-    int numRx = 0;      // number of bytes received
-    char request[MAXREQUEST+1];   // array to hold request from client
-    //char * response;
-    Header headerRx;
-    Request reqRx;
+	int retVal;         // return value from various functions //Count variable
+	int index = 0;      // interfunction index reference point
+	int numRx = 0;      // number of bytes received
+	char request[MAXREQUEST+1];   // array to hold request from client
+	//char * response;
+	Header headerRx;
+	Request reqRx;
 
-    SOCKET listenSocket = INVALID_SOCKET;  // identifier for listening socket
-    // ============== LISTENSOCKET SETUP ===========================================
+	SOCKET listenSocket = INVALID_SOCKET;  // identifier for listening socket
+	// ============== LISTENSOCKET SETUP ===========================================
 
-    listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
-    if (listenSocket == INVALID_SOCKET)  // check for error
-        return 1;       // no point in continuing
+	listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
+	if (listenSocket == INVALID_SOCKET)  // check for error
+		return 1;       // no point in continuing
 
-    // Set up the server to use this socket and the specified port
-    retVal = TCPserverSetup(listenSocket, SERVER_PORT);
-    if (retVal < 0) // check for error
-        return 1;   // End session with err code 1
+	// Set up the server to use this socket and the specified port
+	retVal = TCPserverSetup(listenSocket, SERVER_PORT);
+	if (retVal < 0) // check for error
+		return 1;   // End session with err code 1
 
-    do{ 
-        do{
-            //Re-init for each session
-            index = 0;
-            numRx = 0;
-            // Create variables needed by this function
-            // The server uses 2 sockets - one to listen for connection requests,
-            // the other to make a connection with the client.
-            
-            SOCKET connectSocket = INVALID_SOCKET; // identifier for connection socket
+	do{ 
+		do{
+			//Re-init for each session
+			index = 0;
+			numRx = 0;
+			// Create variables needed by this function
+			// The server uses 2 sockets - one to listen for connection requests,
+			// the other to make a connection with the client.
+			
+			SOCKET connectSocket = INVALID_SOCKET; // identifier for connection socket
 
-        // ============== WAIT FOR CONNECTION ====================================
+		// ============== WAIT FOR CONNECTION ====================================
 
-            // Listen for a client to try to connect, and accept the connection
-            connectSocket = TCPserverConnect(listenSocket);
-            if (connectSocket == INVALID_SOCKET)  // check for error
-                break;   // set the flag to prevent other things happening
+			// Listen for a client to try to connect, and accept the connection
+			connectSocket = TCPserverConnect(listenSocket);
+			if (connectSocket == INVALID_SOCKET)  // check for error
+				break;   // set the flag to prevent other things happening
 
 
-        // ============== RECEIVE REQUEST ======================================
+		// ============== RECEIVE REQUEST ======================================
 
-            // Loop to receive data from the client, until the end marker is found
-            headerRx.data_length = 0;
-            headerRx.timeout = 0;
-            reqRx.cmdRx = INVALID;
-            reqRx.filepath = NULL;
-            reqRx.header = &headerRx;
+			// Loop to receive data from the client, until the end marker is found
+			headerRx.data_length = 0;
+			headerRx.timeout = 0;
+			reqRx.cmdRx = INVALID;
+			reqRx.filepath = NULL;
+			reqRx.header = &headerRx;
 
-            //Fill req array byte by byte until two <LF> are detected
-            //for(i = 0; request[i] == '\n' && request[i - 1] == '\n'; i++)
-            numRx = recv(connectSocket, request, MAXREQUEST, 0);
-            // numRx will be number of bytes received, or an error indicator (negative value)
+			//Fill req array byte by byte until two <LF> are detected
+			//for(i = 0; request[i] == '\n' && request[i - 1] == '\n'; i++)
+			numRx = recv(connectSocket, request, MAXREQUEST, 0);
+			// numRx will be number of bytes received, or an error indicator (negative value)
 
-            if( numRx < 0)  // check for error
-            {
-                printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
-                break;   // set the flag to end the loop
-            }
-            else if (0 == numRx)  // indicates connection closing (but not an error)
-            {
-                printf("Connection closed by client\n");
-                break;   // set the flag to end the loop
-            }
-            else // numRx > 0 => we got some data from the client
-            {
-                printf("Server: REQ received\n");
-                request[numRx] = 0;  // add 0 byte to make request into a string
-                // Print details of the request
-                printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
-                
-                /*================================================
-                ========Parse the request received================
-                ================================================*/
+			if( numRx < 0)  // check for error
+			{
+				printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
+				break;   // set the flag to end the loop
+			}
+			else if (0 == numRx)  // indicates connection closing (but not an error)
+			{
+				printf("Connection closed by client\n");
+				break;   // set the flag to end the loop
+			}
+			else // numRx > 0 => we got some data from the client
+			{
+				printf("Server: REQ received\n");
+				request[numRx] = 0;  // add 0 byte to make request into a string
+				// Print details of the request
+				printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
+				
+				/*================================================
+				========Parse the request received================
+				================================================*/
 
-                if(!parse_command(request, &(reqRx.cmdRx), &index))
-                {
-                    printf("parse req: Invalid command\n");
-                    printf("parse req: %d\n", S_COMMAND_NOT_RECOGNISED);
-                    if(!send_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) printf("main: Error status sent\n");
-                    end_connection(connectSocket, listenSocket);
-                    break;
-                }
+				if(!parse_command(request, &(reqRx.cmdRx), &index))
+				{
+					printf("parse req: Invalid command\n");
+					printf("parse req: %d\n", S_COMMAND_NOT_RECOGNISED);
+					if(!send_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) printf("main: Error status sent\n");
+					end_connection(connectSocket, listenSocket);
+					break;
+				}
 
-                parse_filepath(request, &(reqRx.filepath), &index);
-                    
-                while((retVal = parse_header(request, &headerRx, &index)))
-                {    
-                    if(retVal > 1){ 
-                        printf("Parse Req: Error\n");
-                        if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
-                        printf("main: Terminating connection\n");
-                        end_connection(connectSocket, listenSocket);
-                        break;
-                    }
-                }
+				parse_filepath(request, &(reqRx.filepath), &index);
+					
+				while((retVal = parse_header(request, &headerRx, &index)))
+				{    
+					if(retVal > 1){ 
+						printf("Parse Req: Error\n");
+						if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
+						printf("main: Terminating connection\n");
+						end_connection(connectSocket, listenSocket);
+						break;
+					}
+				}
 
-                #ifdef DEBUG
-                printf("\nCommand:%d\n", reqRx.cmdRx);
-                printf("Filepath:%s\n", reqRx.filepath);
-                printf("Data-length:%ld\n", headerRx.data_length);
-                printf("Timeout:%ld\n\n", headerRx.timeout);
-                #endif 
+				#ifdef DEBUG
+				printf("\nCommand:%d\n", reqRx.cmdRx);
+				printf("Filepath:%s\n", reqRx.filepath);
+				printf("Data-length:%ld\n", headerRx.data_length);
+				printf("Timeout:%ld\n\n", headerRx.timeout);
+				#endif 
 
-                //===============================================
-                //All information from request is now stored. Need to send response.
-                if(!send_status(S_COMMAND_RECOGNISED, connectSocket)) printf("main: Command recognised. Status sent\n");
-                
-                switch(reqRx.cmdRx)
-                {
-                    case GIFT:
+				//===============================================
+				//All information from request is now stored. Need to send response.
+				if(!send_status(S_COMMAND_RECOGNISED, connectSocket)) printf("main: Command recognised. Status sent\n");
+				
+				switch(reqRx.cmdRx)
+				{
+					case GIFT:
 
-                        break;
-                    case WEASEL:
-                            
-                        break;
-                    case LIST:
-                            
-                        break;
-                    default:
-                            
-                        break;
-                }
-                end_connection(connectSocket, listenSocket);
-            
-            }//Keep inside
-        }while(true);
-    }while(true);
-        
-    return 0;
+						break;
+					case WEASEL:
+							
+						break;
+					case LIST:
+							
+						break;
+					default:
+							
+						break;
+				}
+				end_connection(connectSocket, listenSocket);
+			
+			}//Keep inside
+		}while(true);
+	}while(true);
+		
+	return 0;
 }
 
-                                    
+									
 /*
 int send_error_response(int status_code, SOCKET connectSocket){
 
@@ -197,52 +197,52 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 int list_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
 
-    DIR *dp;
-    struct dirent *ep;
-    dp = opendir(reqRx.filepath);
-    int count = 0;
+	DIR *dp;
+	struct dirent *ep;
+	dp = opendir(reqRx.filepath);
+	int count = 0;
 
-    if(dp != NULL)
-    {
-        while(ep = readdir(dp)){
-            fprintf(stdout, "%s\n", ep->d_name);
-            count += strlen(ep->d_name);
-        }
-        closedir(dp);
-    }
-    else
-    {
-        fprintf(stderr, "Can't open the directory\n");
-    }
-    return 0;
+	if(dp != NULL)
+	{
+		while(ep = readdir(dp)){
+			fprintf(stdout, "%s\n", ep->d_name);
+			count += strlen(ep->d_name);
+		}
+		closedir(dp);
+	}
+	else
+	{
+		fprintf(stderr, "Can't open the directory\n");
+	}
+	return 0;
 }
 
 static int send_status(Status_code status, SOCKET connectSocket)
 {
-    int str_size;
-    //hold buffer to send status to client
-    char * buff;
+	int str_size;
+	//hold buffer to send status to client
+	char * buff;
 
-    str_size = strlen((const char *)status_descriptions[status - 1]);
-    //+2 to store '\0' and '\n'
-    buff = (char *)malloc((str_size + 1)*sizeof(char));
-    
-    strcpy(buff, (char *)status_descriptions[status - 1]);
-    buff[str_size] = '\n';
+	str_size = strlen((const char *)status_descriptions[status - 1]);
+	//+2 to store '\0' and '\n'
+	buff = (char *)malloc((str_size + 1)*sizeof(char));
+	
+	strcpy(buff, (char *)status_descriptions[status - 1]);
+	buff[str_size] = '\n';
 
-    if(send(connectSocket, buff, str_size + 2, 0) == -1)
-    {
-        printf("send_status: Error using send()\n");
-        return 1;
-    }
+	if(send(connectSocket, buff, str_size + 2, 0) == -1)
+	{
+		printf("send_status: Error using send()\n");
+		return 1;
+	}
 
-    return 0;
+	return 0;
 }
 
 void end_connection(int connectSocket, int listenSocket)
 {
-    printf("\nServer is closing the connection...\n");
-    
-    // Close the connection socket
-    TCPcloseSocket(connectSocket);
+	printf("\nServer is closing the connection...\n");
+	
+	// Close the connection socket
+	TCPcloseSocket(connectSocket);
 }
