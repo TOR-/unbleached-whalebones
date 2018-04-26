@@ -186,7 +186,7 @@ int gift_server(char * buf, int data_length, char * filepath, SOCKET connectSock
 	
 	printf("\n\n>>%s<<\n\n", filename);
 
-	if(read_data( buf, WRITE, filename, data_length, connectSocket) == -1)
+	if( read_data( buf, WRITE, filename, data_length, connectSocket) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
 		return EXIT_FAILURE;
@@ -194,6 +194,7 @@ int gift_server(char * buf, int data_length, char * filepath, SOCKET connectSock
 	else
 	{
 		printf("gift_server: All good - file written\n");
+		return EXIT_SUCCESS;
 	}
 }
 
