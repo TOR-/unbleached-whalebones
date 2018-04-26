@@ -405,8 +405,10 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 	if(mode_data == PRINT)
 		printf("%s", (char *)remainder );
 	if(mode_data == WRITE)
-		fwrite(remainder, 1, remainder_length, file);
-	
+	{
+		printf("\n\n>>%s<<\n\n", remainder);
+		printf("\n>>>%d<<<\n", fwrite(remainder, 1, remainder_length, file));
+	}	
 	
 	
 	if( data_length > remainder_length )
