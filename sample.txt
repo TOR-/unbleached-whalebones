@@ -1,5 +1,0 @@
-GIFT poop.txt
-Data-length:19
-Timeout:9876
-
-I like trampolines

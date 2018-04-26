@@ -194,7 +194,7 @@ int send_data(int sockfd, char * filepath)
 		if(data_unsent != 0)
 			return(EXIT_FAILURE);
 		
-		printf("\nData unread = %d\n", data_unsent);
+		printf("\nData unread = %ld\n", data_unsent);
 	}
 	
 	fclose(file);
@@ -373,7 +373,7 @@ void free_header_array(Header_array_t *a)
 	//Function to read in the data after the headers
 	//Returns -1 on failure, 0 on success
 	//Two modes: Print, or Write:
-int read_data(char * remainder, Process mode_data, char *  filepath, int data_length, int sockfd)
+int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd)
 {
 	int remainder_length;
 	int buffer_size = BUFSIZE;
@@ -381,36 +381,33 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 	int nrx;
 	FILE * file;
 	
-	remainder_length = strlen(remainder);
+	remainder_length = strlen(excess);
 	
-	if(mode_data == WRITE)
+	if( mode_data == WRITE)
 	{
-		file = fopen(filepath, "w+b");
+		file = fopen(filepath, "r+w");
 		if( NULL == file )
 		{
 			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
 			return(EXIT_FAILURE);
 		}
 	}
-	
+
 	if(verbose)
 	{
 		if(mode_data == PRINT)
 		printf("Your boy here printing out da list of all dem files\n");
 		if(mode_data == WRITE)
 		printf("Your boy here writing the stuff into dat file\n");
-		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
+		printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
 	}
 	
 	if(mode_data == PRINT)
-		printf("%s", (char *)remainder );
+		printf("excess = %s\n", (char *)excess );
 	if(mode_data == WRITE)
-	{
-		printf("\n\n>>%s<<\n\n", remainder);
-		printf("\n>>>%d<<<\n", fwrite(remainder, 1, remainder_length, file));
-	}	
+		printf("characters written = %lu\n", fwrite(excess, 1, remainder_length, file), remainder_length);
 	
-	
+	rewind(file);
 	if( data_length > remainder_length )
 	{
 		data_unread = data_length - remainder_length;
