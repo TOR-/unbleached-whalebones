@@ -93,7 +93,9 @@ int main(int argc, char ** argv)
 	{
 		int check = send_data(sockfd, filepath);
 		if(check == 0)
-			printf("Happy Days\n");
+			printf("Data has been sent to the server\n");
+		else
+			printf("Error sending data to the server\n");
 	}
 	
 	
