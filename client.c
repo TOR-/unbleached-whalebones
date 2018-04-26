@@ -26,10 +26,10 @@ int weasel_request(char ** requestbuf, char * filepath);
 int list_request(char ** requestbuf, char * filepath);
 int (*mode_request_funs[])(char **, char *) = {gift_request, weasel_request, list_request};
 /* Mode-specific request dealiing with */
-int gift_response(char * remainder, SOCKET sockfd, char * filepath);
-int weasel_response(char * remainder, SOCKET sockfd, char * filepath);
-int list_response(char * remainder, SOCKET sockfd, char * filepath);
-int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath) = {gift_response, weasel_response, list_response};
+int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*);
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*);
+int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*);
+int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath, Header_array_t*) = {gift_response, weasel_response, list_response};
 
 #define IPV4LEN 12
 #define OPTSTRING "vqg:w:l:hi:p:"
@@ -40,6 +40,7 @@ FILE * file_parameters(char * filepath, long int *file_size);
 char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
+char * header_search(char * target_header, Header_array_t * header_array);
 
 int main(int argc, char ** argv)
 {
@@ -197,18 +198,18 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 	if(verbose) 
 		printf("client: entering mode-specific response processing.\n Mode: %s.\n", 
 				mode_strs[mode]);
-	mode_response_funs[mode](last_term + 1, sockfd, filepath);
+	mode_response_funs[mode](last_term + 1, sockfd, filepath, &headers);
 
 	free_header_array(&headers);
 	free(responsebuf);
 	return EXIT_SUCCESS;
 }
 
-int gift_response(char * remainder, SOCKET sockfd, char * filepath)
+int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	return EXIT_SUCCESS;
 }
-int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
+int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	FILE * file = fopen(filepath, "w+b");
 	if( NULL == file )
@@ -235,8 +236,51 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath)
 	}
 	return EXIT_SUCCESS;
 }
-int list_response(char * remainder, SOCKET sockfd, char * filepath)
+int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
+	long int data_length = -1;
+	int remainder_length;
+	int check;
+	int buffer_size;
+	int nrx;
+	int i;
+	
+	if(verbose)
+		printf("%zu\n",headers->used);
+	
+	for(i = 0; i < headers->used ; i++)
+	{
+		check = strcmp(headers->array[i].name,"Data-length");
+		if(check == 0)
+		{
+			data_length = atoi( headers->array->value );
+			break;
+		}
+	}
+	if( data_length < 0 )
+	{
+		printf("List Response: Error Data Length not found\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	remainder_length = strlen(remainder);
+	
+	if(verbose)
+	{
+		printf("Your boy here printing out da list of all dem files\n");
+		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
+	}
+	printf("%s\n", remainder);
+	
+	if( data_length > remainder_length )
+	{
+		buffer_size = data_length - remainder_length;
+		
+		uint8_t * buf = malloc( buffer_size );
+		nrx = recv(sockfd, buf, buffer_size, 0);
+		printf("%s", (char *)buf +1);
+	}
+	
 	return EXIT_SUCCESS;
 }
 /* ===========================================================================
