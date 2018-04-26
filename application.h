@@ -7,7 +7,6 @@
 #define DEBUG
 
 #define END_HEAD ':'
-#define MAX_HEADER_SIZE 20
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
@@ -21,18 +20,14 @@
 
 bool verbose;
 
-//typedef enum {ALLOC_FAIL = -1, } Error;
 typedef enum {GIFT, WEASEL, LIST, NUM_MODE} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
 typedef enum { DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
 
-typedef struct head{ // Should members be character types?? Change before/after?
+typedef struct head{
     long int  data_length;
     long int timeout ;
-    //Change to enum
-    //char *ifexist;
-    //char * data_pos;
 } Header;
 
 typedef struct req{

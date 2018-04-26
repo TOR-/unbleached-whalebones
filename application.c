@@ -336,7 +336,7 @@ int parse_header(char * buff, Header * head, int * index)
 
 #ifdef DEBUG
 					printf("parse_header: Timeout is %ld bytes\n", (head->timeout));
-					printf("parse_header: Input is valid == %d\n", valid);
+					printf("parse_header: Input is %d (1 for valid, 0 for invalid)\n", valid);
 #endif
 					//printf("buff points to = %c\n", buff[0]);
 					break;

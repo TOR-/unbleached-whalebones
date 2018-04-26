@@ -96,8 +96,7 @@ int main()
 			reqRx.filepath = NULL;
 			reqRx.header = &headerRx;
 
-			//Fill req array byte by byte until two <LF> are detected
-			//for(i = 0; request[i] == '\n' && request[i - 1] == '\n'; i++)
+			//Read in first chunk of request
 			numRx = recv(connectSocket, request, MAXREQUEST, 0);
 			// numRx will be number of bytes received, or an error indicator (negative value)
 
@@ -144,30 +143,28 @@ int main()
 					}
 				}
 
-				#ifdef DEBUG
+				/*Need to extract file here.*/
+				//Pointer to beginning of file is (request + index)
+
+#ifdef DEBUG
 				printf("\nCommand:%d\n", reqRx.cmdRx);
 				printf("Filepath:%s\n", reqRx.filepath);
 				printf("Data-length:%ld\n", headerRx.data_length);
 				printf("Timeout:%ld\n\n", headerRx.timeout);
-				#endif 
+#endif 
 
-				//===============================================
-				//All information from request is now stored. Need to send response.
-				if(!send_status(S_COMMAND_RECOGNISED, connectSocket)) printf("main: Command recognised. Status sent\n");
-				
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
 
 						break;
 					case WEASEL:
-							
+
 						break;
 					case LIST:
-							
+						if(!list_server(reqRx, connectSocket)) printf("\nmain: Contents of directory sent to client\n");
 						break;
-					default:
-							
+					default:							
 						break;
 				}
 				end_connection(connectSocket, listenSocket);
