@@ -1,4 +1,4 @@
-GIFT sample.txt
+GIFT poop.txt
 Data-length:19
 Timeout:9876
 

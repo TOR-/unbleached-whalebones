@@ -196,7 +196,7 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 
 	sprintf(filename, "Server_Files/%s", filepath);
 
-	if( read_data( buf, PRINT, filename, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, PRINT, filepath, data_length, connectSocket) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
 		return EXIT_FAILURE;
