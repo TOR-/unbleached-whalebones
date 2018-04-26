@@ -42,6 +42,9 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 char * extract_status(char * buf, char ** description, int *status_code);
 char * header_search(char * target_header, Header_array_t * header_array);
 
+const int BUFSIZE = 80;
+
+
 int main(int argc, char ** argv)
 {
 	char * filepath, ip[IPV4LEN];
@@ -211,6 +214,14 @@ int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 }
 int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
+	long int data_length = -1;
+	int remainder_length;
+	int buffer_size = BUFSIZE;
+	int data_unread;
+	int nrx;
+	char * data_length_str = NULL;
+	char * target_header = "Data-length";
+	
 	FILE * file = fopen(filepath, "w+b");
 	if( NULL == file )
 	{
@@ -218,48 +229,93 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 				filepath);
 		exit(EXIT_FAILURE);
 	}
-	const int BUFSIZE = 40;
-	uint8_t buf[BUFSIZE];
+	
+	data_length_str = header_search(target_header, headers);
+	if( data_length_str == NULL )
+	{
+		printf("List Response: Error Data Length Header not found\n");
+		exit(EXIT_FAILURE);
+	}
+	data_length = atoi( data_length_str );
+	
+	if( data_length < 0 )
+	{
+		printf("List Response: Error Data Length was negative\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	remainder_length = strlen(remainder);
+	
+	if(verbose)
+	{
+		printf("Your boy here writing the stuff into dat file\n");
+		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
+	}
+	
+	char * buf = malloc( buffer_size + 1 );
+	if( buf == NULL)
+		perror("Error in weasel_response");
 	
 	// write data left in remainder
 	fwrite(remainder, 1, strlen(remainder), file);
-	// Should probably check data-length header
-	for(int nrx = 1; nrx > 0;)
+	
+	// Then write the remaining data in the socket
+	if( data_length > remainder_length )
 	{
-		nrx = recv(sockfd, buf, BUFSIZE, 0);
-		printf("received %d\n%s\n", nrx, (char *)buf +1);
-		if(nrx > fwrite(buf, 1, nrx, file))
+		data_unread = data_length - remainder_length;
+		char * buf = malloc( buffer_size + 1 );
+		printf("\nData unread = %d\n", data_unread);
+		
+		//Reads from the socket in chunks of BUFSIZE
+		while( data_unread >= buffer_size )
 		{
-			fprintf(stderr, "weasel_response: received %d bytes, wrote less than that.\n",
-					nrx);
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			printf("%s", (char *)buf );
+			fwrite(buf, 1, strlen(buf), file);
+			data_unread = data_unread - buffer_size;
 		}
+		
+		//The data lenght may not divide evenly into the chunks of size BUFSIZE
+		//Here we read in any remaining data
+		if( data_unread > 0)
+		{
+			buffer_size = data_unread;
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			buf[data_unread] = '\0';
+			fwrite(buf, 1, strlen(buf), file);
+			data_unread = data_unread - buffer_size;
+		}
+		free(buf);
+		//printf("\nData unread = %d\n", data_unread);
 	}
 	return EXIT_SUCCESS;
 }
+
 int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	long int data_length = -1;
 	int remainder_length;
-	int check;
-	int buffer_size;
+	int buffer_size = BUFSIZE;
+	int data_unread;
 	int nrx;
-	int i;
+	char * data_length_str = NULL;
+	char * target_header = "Data-length";
 	
 	if(verbose)
-		printf("%zu\n",headers->used);
+		printf("Number of headers: %zu\n",headers->used);
 	
-	for(i = 0; i < headers->used ; i++)
+	data_length_str = header_search(target_header, headers);
+	if( data_length_str == NULL )
 	{
-		check = strcmp(headers->array[i].name,"Data-length");
-		if(check == 0)
-		{
-			data_length = atoi( headers->array->value );
-			break;
-		}
+		printf("List Response: Error Data Length Header not found\n");
+		exit(EXIT_FAILURE);
 	}
+	
+	data_length = atoi( data_length_str );
+	
 	if( data_length < 0 )
 	{
-		printf("List Response: Error Data Length not found\n");
+		printf("List Response: Error Data Length was negative\n");
 		exit(EXIT_FAILURE);
 	}
 	
@@ -270,16 +326,38 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 		printf("Your boy here printing out da list of all dem files\n");
 		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
 	}
-	printf("%s\n", remainder);
+	
+
+	//Reads in data in chunks of size 40, as specified by the BUFFER_SIZE declaration
+	//Will only read in the stuff that is sent
 	
 	if( data_length > remainder_length )
 	{
-		buffer_size = data_length - remainder_length;
+		data_unread = data_length - remainder_length;
+		char * buf = malloc( buffer_size + 1 );
+		printf("\nData unread = %d\n", data_unread);
 		
-		uint8_t * buf = malloc( buffer_size );
-		nrx = recv(sockfd, buf, buffer_size, 0);
-		printf("%s", (char *)buf +1);
+		while( data_unread >= buffer_size )
+		{
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			printf("%s", (char *)buf );
+			data_unread = data_unread - buffer_size;
+		}
+		
+		
+		if( data_unread > 0)
+		{
+			buffer_size = data_unread;
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			buf[data_unread] = '\0';
+			printf("%s", (char *)buf );
+			data_unread = data_unread - buffer_size;
+		}
+		free(buf);
+		//printf("\nData unread = %d\n", data_unread);
 	}
+	
+	free(data_length_str);
 	
 	return EXIT_SUCCESS;
 }
@@ -466,3 +544,24 @@ char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * p
 	return filepath;
 }
 
+//Returns the value associated with the target header as a string
+//Returns NULL if target header is not found
+char * header_search(char * target_header, Header_array_t * headers)
+{
+	int i, check = -1;
+	char* needle;
+	
+	for(i = 0; i < headers->used ; i++)
+	{
+		check = strcmp(headers->array[i].name,target_header);
+		if(check == 0)
+		{
+			needle = malloc( strlen(headers->array[i].value) );
+			needle = headers->array[i].value;
+			if( needle == NULL )
+				perror("Malloc Error in header_search: ");
+			return needle;
+		}
+	}
+	return NULL;
+}
