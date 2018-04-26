@@ -42,6 +42,8 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 char * extract_status(char * buf, char ** description, int *status_code);
 char * header_search(char * target_header, Header_array_t * header_array);
 
+
+
 int main(int argc, char ** argv)
 {
 	char * filepath, ip[IPV4LEN];
@@ -78,16 +80,26 @@ int main(int argc, char ** argv)
 		return EXIT_FAILURE;
 
 	int ret = 0;
-	// ============= Send request ================================================
+	// ============= Send Request ================================================
 	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
 	free(requestbuf);
-	// ============= Request sent ================================================
+	
+	// ============= Sending Data ================================================
+	if( mode == GIFT )
+	{
+		int check = send_data(sockfd, filepath);
+		if(check == 0)
+			printf("Happy Days\n");
+	}
+	
+	
+	// ============= Request Sent ================================================
 
-	// ============= Deal with response ==========================================
+	// ============= Deal with Response ==========================================
 	response(sockfd, mode, filepath);
 	// FINISHED!!!!
 	free(filepath);
@@ -211,78 +223,76 @@ int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 }
 int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
-	FILE * file = fopen(filepath, "w+b");
-	if( NULL == file )
+	long int data_length = -1;
+	char * data_length_str = NULL;
+	char * target_header = "Data-length";
+	int check = -1;
+
+	
+	
+	
+	data_length_str = header_search(target_header, headers);
+	if( data_length_str == NULL )
 	{
-		fprintf(stderr, "weasel_response: failed to open file %s for writing.\n",
-				filepath);
+		printf("List Response: Error Data Length Header not found\n");
 		exit(EXIT_FAILURE);
 	}
-	const int BUFSIZE = 40;
-	uint8_t buf[BUFSIZE];
+	data_length = atoi( data_length_str );
 	
-	// write data left in remainder
-	fwrite(remainder, 1, strlen(remainder), file);
-	// Should probably check data-length header
-	for(int nrx = 1; nrx > 0;)
+	if( data_length < 0 )
 	{
-		nrx = recv(sockfd, buf, BUFSIZE, 0);
-		printf("received %d\n%s\n", nrx, (char *)buf +1);
-		if(nrx > fwrite(buf, 1, nrx, file))
-		{
-			fprintf(stderr, "weasel_response: received %d bytes, wrote less than that.\n",
-					nrx);
-		}
+		printf("List Response: Error Data Length was negative\n");
+		exit(EXIT_FAILURE);
 	}
+	
+	check = read_data(remainder, WRITE, filepath, data_length, sockfd);
+	
+	if(check)
+		printf("Error has occured in reading the attached data!");
+	
+	
+	free(data_length_str);
+
 	return EXIT_SUCCESS;
 }
+
 int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	long int data_length = -1;
-	int remainder_length;
-	int check;
-	int buffer_size;
-	int nrx;
-	int i;
+	int check = -1;
+	char * data_length_str = NULL;
+	char * target_header = "Data-length";
 	
 	if(verbose)
-		printf("%zu\n",headers->used);
+		printf("Number of headers: %zu\n",headers->used);
 	
-	for(i = 0; i < headers->used ; i++)
+	data_length_str = header_search(target_header, headers);
+	if( data_length_str == NULL )
 	{
-		check = strcmp(headers->array[i].name,"Data-length");
-		if(check == 0)
-		{
-			data_length = atoi( headers->array->value );
-			break;
-		}
-	}
-	if( data_length < 0 )
-	{
-		printf("List Response: Error Data Length not found\n");
+		printf("List Response: Error Data Length Header not found\n");
 		exit(EXIT_FAILURE);
 	}
 	
-	remainder_length = strlen(remainder);
+	data_length = atoi( data_length_str );
 	
-	if(verbose)
+	if( data_length < 0 )
 	{
-		printf("Your boy here printing out da list of all dem files\n");
-		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
+		printf("List Response: Error Data Length was negative\n");
+		exit(EXIT_FAILURE);
 	}
-	printf("%s\n", remainder);
 	
-	if( data_length > remainder_length )
-	{
-		buffer_size = data_length - remainder_length;
-		
-		uint8_t * buf = malloc( buffer_size );
-		nrx = recv(sockfd, buf, buffer_size, 0);
-		printf("%s", (char *)buf +1);
-	}
+	
+	check = read_data(remainder, PRINT, filepath, data_length, sockfd);
+
+	if(check)
+		printf("Error has occured in reading the attached data!");
+	
+	free(data_length_str);
 	
 	return EXIT_SUCCESS;
 }
+
+
 /* ===========================================================================
  * Construction of the request to the server in a character buffer
  * =========================================================================== */
@@ -338,7 +348,6 @@ int gift_request(char ** requestbuf, char * filepath)
 {
 	FILE *input_file;
 	long int size_of_file;
-	int error_check = 0;
 	
 	input_file = file_parameters(filepath, &size_of_file);
 	if(input_file == NULL)
@@ -353,12 +362,6 @@ int gift_request(char ** requestbuf, char * filepath)
 	finish_headers(requestbuf);
 	
 	
-	error_check = append_data(input_file, requestbuf, size_of_file);
-	if(requestbuf == NULL || error_check == -1)
-	{
-		printf("GIFT_CLIENT: Error in reading in the data");
-		return EXIT_FAILURE;
-	}
 	
 	return EXIT_SUCCESS;
 }
@@ -466,3 +469,24 @@ char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * p
 	return filepath;
 }
 
+//Returns the value associated with the target header as a string
+//Returns NULL if target header is not found
+char * header_search(char * target_header, Header_array_t * headers)
+{
+	int i, check = -1;
+	char* needle;
+	
+	for(i = 0; i < headers->used ; i++)
+	{
+		check = strcmp(headers->array[i].name,target_header);
+		if(check == 0)
+		{
+			needle = malloc( strlen(headers->array[i].value) );
+			needle = headers->array[i].value;
+			if( needle == NULL )
+				perror("Malloc Error in header_search: ");
+			return needle;
+		}
+	}
+	return NULL;
+}
