@@ -42,8 +42,8 @@ void end_connection(int, int);
 // request processign functions:
 
 //int send_error_response(int status_code, SOCKET connectSocket);
-//int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
-//int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket;
+int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 int list_server(Request reqRx, SOCKET connectSocket);
 
 int main()
@@ -52,7 +52,7 @@ int main()
 	int index = 0;      // interfunction index reference point
 	int numRx = 0;      // number of bytes received
 	char request[MAXREQUEST+1];   // array to hold request from client
-	//char * response;
+    verbose = false;
 	Header headerRx;
 	Request reqRx;
 
@@ -159,7 +159,7 @@ int main()
 
 						break;
 					case WEASEL:
-
+                        if(!weasel_server(reqRx, headerRx, connectSocket)) printf("\nmain: Cannot access filepath specified\n");
 						break;
 					case LIST:
 						if(!list_server(reqRx, connectSocket)) printf("\nmain: Contents of directory sent to client\n");
@@ -177,18 +177,28 @@ int main()
 }
 
 									
-/*
+int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
+{
+    // open file and feed data to client
+    int file_size;
+    char filename[100];
+    sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-   int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
+    FILE *fptr = file_parameters(file_name, &file_size)
+
+    // joe changing append_dat() to send_data()
+    if(!send_data())
+        send_status(100, connectSocket);
+    else
+        send_status(69, connectSocket); // use different status code
 
 
 
+    return 0;
+}
 
 
-   }
 
-
-*/
 int list_server(Request reqRx, SOCKET connectSocket)
 {
 	DIR *dp;
@@ -225,10 +235,8 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	else
 	{
 		fprintf(stderr, "Can't open the directory\n");
-		send_status(, connectSocket);
+		send_status(340, connectSocket); // define new error
 	}
-
-	
 
 	char *dir_list = (char *)malloc(char_count + 3);
 

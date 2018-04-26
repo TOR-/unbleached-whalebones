@@ -1,4 +1,4 @@
-LIST .
+WEASEL new.txt
 Data-length:4321
 Timeout:9876
 
