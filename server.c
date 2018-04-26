@@ -179,20 +179,6 @@ int main()
 									
 /*
 
-int send_error_response(int status_code, SOCKET connectSocket){
-
-}
-   }
-
-   int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket){
-
-   use recv funvtion with FILE * as argument
-
-}
-
-
-   }
-
    int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
 
 
@@ -205,7 +191,6 @@ int send_error_response(int status_code, SOCKET connectSocket){
 */
 int list_server(Request reqRx, SOCKET connectSocket)
 {
-
 	DIR *dp;
 	struct dirent *ep; 
 	int char_count = 0; // counts length of list to send
@@ -222,7 +207,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	}
 
 	dp = opendir(dir_name); // open directory
-	//include length for joe
+	
 	if(dp != NULL)
 	{
 		int index = 0;
@@ -240,16 +225,14 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	else
 	{
 		fprintf(stderr, "Can't open the directory\n");
-		//SEND ERROR RESPONSE
+		send_status(, connectSocket);
 	}
 
-	// SEND POSITIVE RESPONSE
+	
 
 	char *dir_list = (char *)malloc(char_count + 3);
 
-	sprintf(dir_list, "%d\n%s", char_count, response);
-
-	printf("response array = |%s|\n", dir_list);
+	sprintf(dir_list, "Data-length:%d\n\n%s", char_count, response);
 
 	retVal = send(connectSocket, dir_list, strlen(dir_list), 0);  // send bytes
 
@@ -261,6 +244,8 @@ int list_server(Request reqRx, SOCKET connectSocket)
 
 	return 0;
 }
+
+
 static int send_status(Status_code status, SOCKET connectSocket)
 {
 	int str_size;
