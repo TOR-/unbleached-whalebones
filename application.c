@@ -406,7 +406,7 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 		if( NULL == file )
 		{
 			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
-			exit(EXIT_FAILURE);
+			return(EXIT_FAILURE);
 		}
 	}
 	
@@ -420,9 +420,9 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 	}
 	
 	if(mode_data == PRINT)
-	printf("%s", (char *)remainder );
+		printf("%s", (char *)remainder );
 	if(mode_data == WRITE)
-	fwrite(remainder, 1, remainder_length, file);
+		fwrite(remainder, 1, remainder_length, file);
 	
 	
 	
@@ -436,9 +436,9 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 		{
 			nrx = recv(sockfd, buf, buffer_size, 0);
 			if( mode_data == PRINT )
-			printf("%s", (char *)buf );
+				printf("%s", (char *)buf );
 			if( mode_data == WRITE )
-			fwrite(buf, 1, strlen(buf), file);
+				fwrite(buf, 1, strlen(buf), file);
 			data_unread = data_unread - buffer_size;
 		}
 		
@@ -449,16 +449,16 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 			nrx = recv(sockfd, buf, buffer_size, 0);
 			buf[data_unread] = '\0';
 			if( mode_data == PRINT )
-			printf("%s", (char *)buf );
+				printf("%s", (char *)buf );
 			if( mode_data == WRITE )
-			fwrite(buf, 1, strlen(buf), file);
+				fwrite(buf, 1, strlen(buf), file);
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);
 			//printf("\nData unread = %d\n", data_unread);
 	}
 	if(data_unread != 0)
-	return(EXIT_FAILURE);
+		return(EXIT_FAILURE);
 	
 	
 	return(EXIT_SUCCESS);
