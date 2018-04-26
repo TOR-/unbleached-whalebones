@@ -13,7 +13,7 @@
 #define NULLBYTE '\0'
 #define BUFSIZE 80;
 
-
+#define SWDIR	"Server_Files/"
 #define HEADER_SEPARATOR ':'
 #define HEADER_TERMINATOR '\n'
 #define STATUS_SEPARATOR " "
@@ -40,8 +40,8 @@ typedef struct head{ // Should members be character types?? Change before/after?
 
 typedef struct req{
     Mode_t cmdRx;
-    char *filepath;
-    Header *header;
+    char * filepath;
+    Header * header;
 } Request;
 
 typedef struct Response_t{

@@ -1,4 +1,5 @@
-LIST .
-Data-length:4321
+GIFT sample.txt
+Data-length:19
 Timeout:9876
 
+I like trampolines

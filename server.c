@@ -33,7 +33,7 @@
 #define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
 #define ENDMARK 10			// the newline character
 
-static int send_status(Status_code,  SOCKET);
+int send_status(Status_code,  SOCKET);
 int parse_request(Request * , Header * , char * );
 void end_connection(int, int);
 //char * check_parse_error(int error, char * err_msg);
@@ -42,7 +42,7 @@ void end_connection(int, int);
 // request processign functions:
 
 //int send_error_response(int status_code, SOCKET connectSocket);
-//int gift_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+int gift_server(char * request, int data_length, char * filepath,  SOCKET connectSocket);
 //int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket;
 int list_server(Request reqRx, SOCKET connectSocket);
 
@@ -51,7 +51,7 @@ int main()
 	int retVal;         // return value from various functions //Count variable
 	int index = 0;      // interfunction index reference point
 	int numRx = 0;      // number of bytes received
-	char request[MAXREQUEST+1];   // array to hold request from client
+	char request[MAXREQUEST];   // array to hold request from client
 	//char * response;
 	Header headerRx;
 	Request reqRx;
@@ -131,20 +131,14 @@ int main()
 				}
 
 				parse_filepath(request, &(reqRx.filepath), &index);
-					
-				while((retVal = parse_header(request, &headerRx, &index)))
-				{    
-					if(retVal > 1){ 
-						printf("Parse Req: Error\n");
-						if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
-						printf("main: Terminating connection\n");
-						end_connection(connectSocket, listenSocket);
-						break;
-					}
-				}
 
-				/*Need to extract file here.*/
-				//Pointer to beginning of file is (request + index)
+				if(parse_header(request, &headerRx, &index) > 1){ 
+					printf("main: Bad header\n");
+					if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
+					printf("main: Terminating connection\n");
+					end_connection(connectSocket, listenSocket);
+					break;
+				}
 
 #ifdef DEBUG
 				printf("\nCommand:%d\n", reqRx.cmdRx);
@@ -156,7 +150,15 @@ int main()
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
-
+						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
+						{
+							send_status(S_COMMAND_RECOGNISED, connectSocket);
+							printf("main: File written successfully\n");
+						}
+						else
+						{
+							printf("main: Error writing file\n");
+						}
 						break;
 					case WEASEL:
 
@@ -176,21 +178,28 @@ int main()
 	return 0;
 }
 
-									
-/*
+int gift_server(char * buf, int data_length, char * filepath, SOCKET connectSocket){
+	
+	char filename[1000];
 
-   int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket){
+	sprintf(filename, "Server_Files/%s", filepath);
+	
+	printf("\n\n>>%s<<\n\n", filename);
 
+	if(read_data( buf, WRITE, filename, data_length, connectSocket) == -1)
+	{
+		printf("gift_server: Error reading data\n");
+		return EXIT_FAILURE;
+	}
+	else
+	{
+		printf("gift_server: All good - file written\n");
+	}
+}
 
-
-
-
-   }
-
-
-*/
 int list_server(Request reqRx, SOCKET connectSocket)
 {
+
 	DIR *dp;
 	struct dirent *ep; 
 	int char_count = 0; // counts length of list to send
@@ -207,7 +216,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	}
 
 	dp = opendir(dir_name); // open directory
-	
+	//include length for joe
 	if(dp != NULL)
 	{
 		int index = 0;
@@ -225,14 +234,16 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	else
 	{
 		fprintf(stderr, "Can't open the directory\n");
-		send_status(, connectSocket);
+		//SEND ERROR RESPONSE
 	}
 
-	
+	// SEND POSITIVE RESPONSE
 
 	char *dir_list = (char *)malloc(char_count + 3);
 
-	sprintf(dir_list, "Data-length:%d\n\n%s", char_count, response);
+	sprintf(dir_list, "%d\n%s", char_count, response);
+
+	printf("response array = |%s|\n", dir_list);
 
 	retVal = send(connectSocket, dir_list, strlen(dir_list), 0);  // send bytes
 
@@ -245,8 +256,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	return 0;
 }
 
-
-static int send_status(Status_code status, SOCKET connectSocket)
+int send_status(Status_code status, SOCKET connectSocket)
 {
 	int str_size;
 	//hold buffer to send status to client

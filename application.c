@@ -269,30 +269,8 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
  * <head>	pointer to Header structure to populate wth parsed values 
  * <index>	pointer to integer that contains index of beginning of current header being processed */
 int parse_header(char * buff, Header * head, int * index)
-{
-	// !!!!!!!!!!!!!!!!!!!TODO remove this
-	verbose = true;
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	int count = 0;
-	bool valid = false;
-	/*
-		char * headbuff = calloc(1, MAX_HEADER_SIZE+1);
-		if(NULL == headbuff)
-		{
-			fprintf(stderr, "%s: couldn't allocate memory for header.\n", 
-					__FUNCTION__);
-			return EXIT_FAILURE;
-		}
-		for(count = 0; buff[*index + count] != ':'; count++){
-			printf("[%c(%d)]", headbuff[count], count);
-			headbuff[count] = buff[*index + count];
-		}
-		headbuff[count++] = NULLBYTE;
-		
-		*index += count;
-		buff = buff + *index;
-	*/
-	// Extract headers
+{	
+	// extract all headers from <buff>
 	Header_array_t headers;
 	bool headers_finished;
 	int n_headers;
@@ -307,8 +285,10 @@ int parse_header(char * buff, Header * head, int * index)
 		pos = extract_header(next_start, &headers, &headers_finished);
 	}
 	if(verbose) printf("%s:headers finished.\n", __FUNCTION__);
-	
-	// Process each possible header
+	*index = pos - buff;
+	// all headers extracted
+
+	// Process each header in <headers>
 	for(int i = 0; i < NUM_HEAD && (size_t) i < headers.used; i++)	
 		if(!strcmp(headers.array[i].name, header_name[i]))
 		{
@@ -316,48 +296,25 @@ int parse_header(char * buff, Header * head, int * index)
 			{
 				case DATA_LENGTH:
 					head->data_length = atoi(headers.array[i].value);
-					valid = true;
-
 #ifdef DEBUG
 					printf("parse_header: Data length is %ld bytes\n", (head->data_length));
-					printf("parse_header: Input is valid == %d\n", valid);
 #endif
 					break;
 				case TIMEOUT:
-					// TODO convert this function
-					//Count amount of char in header value
-					for(count = 0; buff[count++] != '\n';)    
-						//Need to read number here
-						(head->timeout) = strtol(buff, NULL, DEC);
+					head->timeout = strtol(headers.array[i].value, NULL, DEC);
 					//Index is now at beginning of next header value
-					buff += count + 1;
-					*index += count;
-					valid = true;
-
 #ifdef DEBUG
 					printf("parse_header: Timeout is %ld bytes\n", (head->timeout));
-					printf("parse_header: Input is valid == %d\n", valid);
 #endif
-					//printf("buff points to = %c\n", buff[0]);
 					break;
+				default:
+					return S_HEADER_NOT_RECOGNISED;				
 			}
 		}
-	if(!valid){
-		perror("head parse: Bad header value\n");
-		return S_HEADER_NOT_RECOGNISED;
-	}
-	else
-	{
-		printf("%s(%d)\n", __FUNCTION__, __LINE__);
-		if(buff[*index] == '\n')
-		{
-			printf("parse_header: End of headers. Nothing left to process\n");
-			(*index) = (*index) + 1;// start of data index
-			return 0;
-		} 
+	
+	return EXIT_SUCCESS;
 
-	}
-	return EXIT_FAILURE;
+	
 }
 
 // TODO implement error checking here
