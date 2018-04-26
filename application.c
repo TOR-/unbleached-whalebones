@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "application.h"
 
@@ -22,8 +23,7 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " " //90-99
 	,
 								
-		"101 Command recognised", " ",
-		" ", " ", " ", " ", " ", " ", " ", " ", 
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
@@ -336,7 +336,7 @@ int parse_header(char * buff, Header * head, int * index)
 
 #ifdef DEBUG
 					printf("parse_header: Timeout is %ld bytes\n", (head->timeout));
-					printf("parse_header: Input is %d (1 for valid, 0 for invalid)\n", valid);
+					printf("parse_header: Input is valid == %d\n", valid);
 #endif
 					//printf("buff points to = %c\n", buff[0]);
 					break;
@@ -385,4 +385,81 @@ void free_header_array(Header_array_t *a)
 	free(a->array);
 	a->array = NULL;
 	a->used = a->size = 0;
+}
+
+	//Function to read in the data after the headers
+	//Returns -1 on failure, 0 on success
+	//Two modes: Print, or Write:
+int read_data(char * remainder, Process mode_data, char *  filepath, int data_length, int sockfd)
+{
+	int remainder_length;
+	int buffer_size = BUFSIZE;
+	int data_unread = 0;
+	int nrx;
+	FILE * file;
+	
+	remainder_length = strlen(remainder);
+	
+	if(mode_data == WRITE)
+	{
+		file = fopen(filepath, "w+b");
+		if( NULL == file )
+		{
+			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	if(verbose)
+	{
+		if(mode_data == PRINT)
+		printf("Your boy here printing out da list of all dem files\n");
+		if(mode_data == WRITE)
+		printf("Your boy here writing the stuff into dat file\n");
+		printf("Remainder Length: %d\n, Data Length: %ld\n", remainder_length, data_length);
+	}
+	
+	if(mode_data == PRINT)
+	printf("%s", (char *)remainder );
+	if(mode_data == WRITE)
+	fwrite(remainder, 1, remainder_length, file);
+	
+	
+	
+	if( data_length > remainder_length )
+	{
+		data_unread = data_length - remainder_length;
+		char * buf = malloc( buffer_size + 1 );
+		printf("\nData unread = %d\n", data_unread);
+		
+		while( data_unread >= buffer_size )
+		{
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			if( mode_data == PRINT )
+			printf("%s", (char *)buf );
+			if( mode_data == WRITE )
+			fwrite(buf, 1, strlen(buf), file);
+			data_unread = data_unread - buffer_size;
+		}
+		
+		
+		if( data_unread > 0)
+		{
+			buffer_size = data_unread;
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			buf[data_unread] = '\0';
+			if( mode_data == PRINT )
+			printf("%s", (char *)buf );
+			if( mode_data == WRITE )
+			fwrite(buf, 1, strlen(buf), file);
+			data_unread = data_unread - buffer_size;
+		}
+		free(buf);
+			//printf("\nData unread = %d\n", data_unread);
+	}
+	if(data_unread != 0)
+	return(EXIT_FAILURE);
+	
+	
+	return(EXIT_SUCCESS);
 }

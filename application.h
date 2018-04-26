@@ -7,9 +7,12 @@
 #define DEBUG
 
 #define END_HEAD ':'
+#define MAX_HEADER_SIZE 20
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
+#define BUFSIZE 80;
+
 
 #define HEADER_SEPARATOR ':'
 #define HEADER_TERMINATOR '\n'
@@ -20,14 +23,19 @@
 
 bool verbose;
 
+//typedef enum {ALLOC_FAIL = -1, } Error;
 typedef enum {GIFT, WEASEL, LIST, NUM_MODE} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
 typedef enum { DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
+typedef enum {PRINT, WRITE} Process;
 
-typedef struct head{
+typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
     long int timeout ;
+    //Change to enum
+    //char *ifexist;
+    //char * data_pos;
 } Header;
 
 typedef struct req{
@@ -68,6 +76,8 @@ bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
+int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd);
+
 
 typedef enum {
 /* ↓ 1xx successful transaction ↓ */
