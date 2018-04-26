@@ -1,10 +1,5 @@
-<<<<<<< HEAD
 GIFT sample.txt
 Data-length:19
-=======
-WEASEL new.txt
-Data-length:4321
->>>>>>> 95153dddfab7432bae4a56dd3f89e246d38eddf5
 Timeout:9876
 
 I like trampolines

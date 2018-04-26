@@ -80,16 +80,28 @@ int main(int argc, char ** argv)
 		return EXIT_FAILURE;
 
 	int ret = 0;
-	// ============= Send request ================================================
+	// ============= Send Request ================================================
 	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
 		return EXIT_FAILURE;
 	}
 	free(requestbuf);
-	// ============= Request sent ================================================
+	
+	// ============= Sending Data ================================================
+	if( mode == GIFT )
+	{
+		int check = send_data(sockfd, filepath);
+		if(check == 0)
+			printf("Data has been sent to the server\n");
+		else
+			printf("Error sending data to the server\n");
+	}
+	
+	
+	// ============= Request Sent ================================================
 
-	// ============= Deal with response ==========================================
+	// ============= Deal with Response ==========================================
 	response(sockfd, mode, filepath);
 	// FINISHED!!!!
 	free(filepath);
@@ -338,7 +350,6 @@ int gift_request(char ** requestbuf, char * filepath)
 {
 	FILE *input_file;
 	long int size_of_file;
-	int error_check = 0;
 	
 	input_file = file_parameters(filepath, &size_of_file);
 	if(input_file == NULL)
@@ -353,12 +364,6 @@ int gift_request(char ** requestbuf, char * filepath)
 	finish_headers(requestbuf);
 	
 	
-	error_check = append_data(input_file, requestbuf, size_of_file);
-	if(requestbuf == NULL || error_check == -1)
-	{
-		printf("GIFT_CLIENT: Error in reading in the data");
-		return EXIT_FAILURE;
-	}
 	
 	return EXIT_SUCCESS;
 }

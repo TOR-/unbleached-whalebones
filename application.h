@@ -11,7 +11,8 @@
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
-#define BUFSIZE 80;
+#define BUFSIZE 80
+
 
 #define SWDIR	"Server_Files/"
 #define HEADER_SEPARATOR ':'
@@ -69,7 +70,7 @@ int finish_headers(char ** headers);
 
 
 FILE* file_parameters(char *filepath, long int *file_size);
-int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
+int send_data(int sockfd, char * filepath);
 
 
 bool parse_command(char * buff, Mode_t * cmdRx, int * index);

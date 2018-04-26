@@ -152,6 +152,8 @@ int main()
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
+						printf(">>%c<<\n\n", request[index]);
+
 						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
 						{
 							send_status(S_COMMAND_RECOGNISED, connectSocket);
@@ -167,8 +169,6 @@ int main()
 						break;
 					case LIST:
 						if(!list_server(reqRx, connectSocket)) printf("\nmain: Contents of directory sent to client\n");
-						break;
-					default:							
 						break;
 				}
 				end_connection(connectSocket, listenSocket);

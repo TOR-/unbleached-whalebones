@@ -22,8 +22,8 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //80-89
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " " //90-99
 	,
-								
-		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
+		"101 Command recognised", " ",						
+		" ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
@@ -116,7 +116,7 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 {
 	FILE* input_file;
 
-	if( ( input_file = fopen(filepath, READ_ONLY) )== NULL )
+	if( ( input_file = fopen(filepath, READ_ONLY) ) == NULL )
 	{
 		if(verbose)
 			printf("File does not exist\n");
@@ -143,36 +143,62 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 }
 
 //Function to append the data to the request
-int append_data(FILE* input_file, char** request_buf, long int size_of_file)
-{	
-	long int header_length = strlen(*request_buf) + 1;
+int send_data(int sockfd, char * filepath)
+{
+	long int size_of_file = -1;
+	long int data_unsent = 0;
+	int nrx;
+	
+	FILE * file = file_parameters(filepath, &size_of_file);
+	
+	if( size_of_file == -1 )
+	{
+		perror("Error opening file");
+		return EXIT_FAILURE;
+	}
+	
 
-	uint8_t* data = malloc(size_of_file + 1);
-	if(data == NULL)
+	data_unsent = size_of_file;
+	
+	if( verbose )
+		printf("Data Bytes to be sent: %ld", data_unsent);
+	if( data_unsent > BUFSIZE )
 	{
-		perror("Error appending data: ");
-		return EXIT_FAILURE;
+		char * data_buf = malloc( BUFSIZE + 1 );
+		if( data_buf == NULL)
+		{
+			perror("Error in send_data");
+			return EXIT_FAILURE;
+		}
+		
+		if( verbose )
+			printf("\nData unread = %ld\n", data_unsent);
+		
+		while( data_unsent >= BUFSIZE )
+		{
+			fread(data_buf, 1, BUFSIZE, file);
+			nrx = send(sockfd, data_buf, BUFSIZE, 0);
+			
+			data_unsent = data_unsent - BUFSIZE;
+		}
+		
+		if( data_unsent > 0)
+		{
+			fread(data_buf, 1, data_unsent, file);
+			//buf[data_unread + 1] = '\0';
+			nrx = send(sockfd, data_buf, BUFSIZE, 0);
+			data_unsent = data_unsent - BUFSIZE;
+		}
+		free(data_buf);
+		
+		if(data_unsent != 0)
+			return(EXIT_FAILURE);
+		
+		printf("\nData unread = %d\n", data_unsent);
 	}
-	data[size_of_file] = '\0';
-	// Reallocate memory to account for the headers
-	// Should be rewritten with temporary pointer to prevent losing access 
-	// 	to memory
-	*request_buf = (char *) realloc(*request_buf, size_of_file + header_length);
-	if(request_buf == NULL)
-	{
-		perror("Error appending data: ");
-		return EXIT_FAILURE;
-	}
-
-	//Read in data from the file
-	if(size_of_file != fread(data, 1, size_of_file, input_file))
-	{
-		fprintf(stderr, "append_data: error in reading the file: %s", 
-				strerror(ferror(input_file)));
-		return EXIT_FAILURE;
-	}
-	strcat(*request_buf, (char *)data);
-	free(data);
+	
+	fclose(file);
+	
 	return EXIT_SUCCESS;
 }
 
@@ -394,8 +420,10 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 			nrx = recv(sockfd, buf, buffer_size, 0);
 			if( mode_data == PRINT )
 				printf("%s", (char *)buf );
+			
 			if( mode_data == WRITE )
 				fwrite(buf, 1, strlen(buf), file);
+			
 			data_unread = data_unread - buffer_size;
 		}
 		
