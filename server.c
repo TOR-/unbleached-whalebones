@@ -152,8 +152,6 @@ int main()
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
-						printf(">>%c<<\n\n", request[index]);
-
 						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
 						{
 							send_status(S_COMMAND_RECOGNISED, connectSocket);
@@ -161,6 +159,7 @@ int main()
 						}
 						else
 						{
+							//Send Status
 							printf("main: Error writing file\n");
 						}
 						break;
@@ -197,7 +196,7 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 
 	sprintf(filename, "Server_Files/%s", filepath);
 
-	if( read_data( buf, WRITE, filename, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, PRINT, filename, data_length, connectSocket) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
 		return EXIT_FAILURE;
