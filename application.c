@@ -57,8 +57,14 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //329
 		" ", " " , " " , " ", " " , " ", " ", " ", " ", " ", //339
 		"340 File not found",
-		"341 Illegal file path"
-	
+		"341 Illegal file path",
+		" ", " ", " ", " ", " ", " ", " ", " ", 			//349
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//359
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//369
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//379
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//389
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//399
+		"400 Server error", " ", "402 Server write error"
 };
 
 
@@ -405,7 +411,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 	if(mode_data == PRINT)
 		printf("excess = %s\n", (char *)excess );
 	if(mode_data == WRITE)
-		printf("characters written = %lu\n", fwrite(excess, 1, remainder_length, file), remainder_length);
+		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
 	
 	rewind(file);
 	if( data_length > remainder_length )

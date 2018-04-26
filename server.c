@@ -1,16 +1,5 @@
-/*  EEEN20060 Communication Systems
-	Simple TCP server program, to demonstrate the basic concepts,
-	using IP version 4.
-
-	It listens on a specified port until a client connects.
-	Then it waits for a request from the client, and keeps trying
-	to receive bytes until it finds the end marker.
-	Then it sends a long response to the client, which includes
-	the last part of the request received.
-	Then it tidies up and stops.
-
-	This program is not robust - if a problem occurs, it just
-	tidies up and exits, with no attempt to fix the problem.  */
+/*  
+	 */
 
 #include <errno.h>
 #include <stdio.h>
@@ -33,27 +22,20 @@
 #define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
 #define ENDMARK 10			// the newline character
 
-int send_status(Status_code,  SOCKET);
-int parse_request(Request * , Header * , char * );
-void end_connection(int, int);
-//char * check_parse_error(int error, char * err_msg);
+static int send_status(Status_code,  SOCKET);
+static void end_connection(int);
 
-//char * check_parse_error(int error, char * err_msg)
-// request processign functions:
-
-//int send_error_response(int status_code, SOCKET connectSocket);
-
-int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
-int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
-int list_server(Request reqRx, SOCKET connectSocket);
+static int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
+static int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
+static int list_server(Request reqRx, SOCKET connectSocket);
 
 int main()
 {
-	int retVal;         // return value from various functions //Count variable
-	int index = 0;      // interfunction index reference point
-	int numRx = 0;      // number of bytes received
+	int retVal;         		// return value from various functions //Count variable
+	int index = 0;      		// interfunction index reference point
+	int numRx = 0;      		// number of bytes received
 	char request[MAXREQUEST];   // array to hold request from client
-	verbose = false;
+	verbose = false;			//For debugging purposes
 	
 	Header headerRx;
 	Request reqRx;
@@ -61,23 +43,29 @@ int main()
 	SOCKET listenSocket = INVALID_SOCKET;  // identifier for listening socket
 	// ============== LISTENSOCKET SETUP ===========================================
 
-	listenSocket = TCPSocket(AF_INET);  // initialise and create a socket
-	if (listenSocket == INVALID_SOCKET)  // check for error
-		return 1;       // no point in continuing
+	listenSocket = TCPSocket(AF_INET);		// initialise and create a socket
+	if (listenSocket == INVALID_SOCKET)		// check for error
+	{	
+		if(verbose) printf("main: Error initialising listen socket. Exiting...\n");
+		return EXIT_FAILURE;
+	}
 
 	// Set up the server to use this socket and the specified port
 	retVal = TCPserverSetup(listenSocket, SERVER_PORT);
-	if (retVal < 0) // check for error
-		return 1;   // End session with err code 1
+	if (retVal < 0) 			// check for error
+		return EXIT_FAILURE;   	// End session with err code EXIT_FAILURE
+	
+	/*Server listens until a request to create a connection is received.
+	  Once server obtains a request, the fidelity of the request command
+	  and header values and arguments are tested. If an invalid value is
+	  found, server closes connection and breaks from nested loop.
+	  Server proceeds to listen again.*/
 
 	do{ 
 		do{
 			//Re-init for each session
 			index = 0;
 			numRx = 0;
-			// Create variables needed by this function
-			// The server uses 2 sockets - one to listen for connection requests,
-			// the other to make a connection with the client.
 			
 			SOCKET connectSocket = INVALID_SOCKET; // identifier for connection socket
 
@@ -86,12 +74,15 @@ int main()
 			// Listen for a client to try to connect, and accept the connection
 			connectSocket = TCPserverConnect(listenSocket);
 			if (connectSocket == INVALID_SOCKET)  // check for error
+			{
+				if(verbose) printf("main: Invalid connect socket. Exiting...\n");
+				
 				break;   // set the flag to prevent other things happening
-
+			}
 
 		// ============== RECEIVE REQUEST ======================================
 
-			// Loop to receive data from the client, until the end marker is found
+			// Re-init struct members to store details of request
 			headerRx.data_length = 0;
 			headerRx.timeout = 0;
 			reqRx.cmdRx = NUM_MODE;
@@ -100,79 +91,99 @@ int main()
 
 			//Read in first chunk of request
 			numRx = recv(connectSocket, request, MAXREQUEST, 0);
-			// numRx will be number of bytes received, or an error indicator (negative value)
 
 			if( numRx < 0)  // check for error
 			{
-				printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
-				break;   // set the flag to end the loop
+				if(verbose) printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
+				break;   // break from loop
 			}
 			else if (0 == numRx)  // indicates connection closing (but not an error)
 			{
-				printf("Connection closed by client\n");
-				break;   // set the flag to end the loop
+				if(verbose) printf("Connection closed by client\n");
+				break;   // break from loop
 			}
-			else // numRx > 0 => we got some data from the client
+			else // request received
 			{
-				printf("Server: REQ received\n");
+				if(verbose) printf("main: REQ received\n");
 				request[numRx] = 0;  // add 0 byte to make request into a string
 				// Print details of the request
-				printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
+				if(verbose) printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
 				
 				/*================================================
-				========Parse the request received================
+				================ PARSE REQUEST ===================
 				================================================*/
 
+				// Index tracks the position within the initial request buffer
+				//Parse command returns 'true' for a valid command and false
+				//for invalid. Invalid cmd ends session with client
 				if(!parse_command(request, &(reqRx.cmdRx), &index))
 				{
-					printf("parse req: Invalid command\n");
-					printf("parse req: %d\n", S_COMMAND_NOT_RECOGNISED);
-					if(!send_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) printf("main: Error status sent\n");
-					end_connection(connectSocket, listenSocket);
+					if(verbose)
+					{
+						printf("main: Invalid command\n");
+						printf("main: Err number >>%d<<\n", S_COMMAND_NOT_RECOGNISED);
+					}
+					
+					if(!send_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) 
+						if(verbose) printf("main: Error status sent\n");
+					
+					if(verbose) printf("main: Terminating connection\n");
+					end_connection(connectSocket);
 					break;
 				}
 
+				// Extracts filepath. Not tested within this function.
 				parse_filepath(request, &(reqRx.filepath), &index);
 
+				// Parse header extracts all headers and args and returns 0
+				// if everything goes well. Err code otherwise.
 				if(parse_header(request, &headerRx, &index) > 1){ 
-					printf("main: Bad header\n");
+					if(verbose) printf("main: Bad header\n");
 					if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
-					printf("main: Terminating connection\n");
-					end_connection(connectSocket, listenSocket);
+					if(verbose) printf("main: Terminating connection\n");
+					end_connection(connectSocket);
 					break;
 				}
 
-#ifdef DEBUG
-				printf("\nCommand:%d\n", reqRx.cmdRx);
-				printf("Filepath:%s\n", reqRx.filepath);
-				printf("Data-length:%ld\n", headerRx.data_length);
-				printf("Timeout:%ld\n\n", headerRx.timeout);
-#endif 
+				if(verbose)
+				{
+					printf("\nCommand:%d\n", reqRx.cmdRx);
+					printf("Filepath:%s\n", reqRx.filepath);
+					printf("Data-length:%ld\n", headerRx.data_length);
+					printf("Timeout:%ld\n\n", headerRx.timeout);
+				} 
 
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
 						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
-						{
+						{	//If gift server exits with EXIT_SUCCESS, all good.
 							send_status(S_COMMAND_RECOGNISED, connectSocket);
-							printf("main: File written successfully\n");
+							if(verbose) printf("main: File written successfully\n");
 						}
 						else
 						{
-							//Send Status
-							printf("main: Error writing file\n");
+							// There has been an error writing the file
+							send_status(S_SERVER_WRITE_ERROR, connectSocket);
+							if(verbose) printf("main: Error writing file\n");
 						}
 						break;
 					case WEASEL:
-                        if(!weasel_server(reqRx, headerRx, connectSocket)) printf("\nmain: Cannot access filepath specified\n");
+                        if(!weasel_server(reqRx, headerRx, connectSocket)) 
+						{	//Illegal filepath
+							if(verbose) printf("\nmain: Cannot access filepath specified\n");
+							//send_status(S_ILLEGAL_FILE_PATH, connectSocket); Is status code sent from within weasel?
+						}
 						break;
 					case LIST:
-						if(!list_server(reqRx, connectSocket)) printf("\nmain: Contents of directory sent to client\n");
+						if(!list_server(reqRx, connectSocket)) if(verbose) printf("\nmain: Contents of directory sent to client\n");
+						break;
+					case NUM_MODE:	//Never reaches this as cmd has already been tested, but gets rid of warning from gcc
 						break;
 				}
-				end_connection(connectSocket, listenSocket);
+				end_connection(connectSocket);
 			
-			}//Keep inside
+			}
 		}while(true);
 	}while(true);
 		
@@ -286,7 +297,7 @@ int send_status(Status_code status, SOCKET connectSocket)
 
 	return 0;
 }
-void end_connection(int connectSocket, int listenSocket)
+void end_connection(int connectSocket)
 {
 	printf("\nServer is closing the connection...\n");
 	

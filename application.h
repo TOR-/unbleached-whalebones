@@ -110,6 +110,7 @@ typedef enum {
 /* ↓ 4xx server error ↓ */
 	S_SERVER_ERROR									= 400,
 	S_COMMAND_NOT_IMPLEMENTED						,
+	S_SERVER_WRITE_ERROR							,
 	S_CANNOT_SATISFY_REQUEST						= 410,
 	S_UNRECOGNISED_ENCODING						
 } Status_code;
