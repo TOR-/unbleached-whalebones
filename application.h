@@ -77,7 +77,7 @@ int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
 int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd);
-
+int send_data(int socket, char * filepath);
 
 typedef enum {
 /* ↓ 1xx successful transaction ↓ */

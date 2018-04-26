@@ -43,7 +43,7 @@ void end_connection(int, int);
 
 //int send_error_response(int status_code, SOCKET connectSocket);
 
-int gift_server(char * request, int data_length, char * filepath,  SOCKET connectSocket);
+int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 int list_server(Request reqRx, SOCKET connectSocket);
 
@@ -183,24 +183,19 @@ int main()
 									
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
-    // open file and feed data to client
-    int file_size;
     char filename[100];
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-    FILE *fptr = file_parameters(file_name, &file_size)
+	send_status(100, connectSocket);
 
-    // joe changing append_dat() to send_data()
-    if(!send_data())
-        send_status(100, connectSocket);
-    else
-        send_status(69, connectSocket); // use different status code
-
-
-
-    return 0;
+	return send_data(connectSocket, filename);
 }
 
+int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket)
+{
+	char filename [1000];
+
+	sprintf(filename, "Server_Files/%s", filepath);
 
 	if( read_data( buf, WRITE, filename, data_length, connectSocket) == EXIT_FAILURE )
 	{
