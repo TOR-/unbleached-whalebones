@@ -11,7 +11,10 @@
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
+#define BUFSIZE 1024
 
+
+#define SWDIR	"Server_Files/"
 #define HEADER_SEPARATOR ':'
 #define HEADER_TERMINATOR '\n'
 #define STATUS_SEPARATOR " "
@@ -26,6 +29,7 @@ typedef enum {GIFT, WEASEL, LIST, NUM_MODE} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
 typedef enum { DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
+typedef enum {PRINT, WRITE} Process;
 
 typedef struct head{ // Should members be character types?? Change before/after?
     long int  data_length;
@@ -37,8 +41,8 @@ typedef struct head{ // Should members be character types?? Change before/after?
 
 typedef struct req{
     Mode_t cmdRx;
-    char *filepath;
-    Header *header;
+    char * filepath;
+    Header * header;
 } Request;
 
 typedef struct Response_t{
@@ -66,13 +70,15 @@ int finish_headers(char ** headers);
 
 
 FILE* file_parameters(char *filepath, long int *file_size);
-int append_data(FILE* input_file, char** requestbuf, long int size_of_file);
+int send_data(int sockfd, char * filepath);
 
 
 bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
+int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd);
+int send_data(int socket, char * filepath);
 
 typedef enum {
 /* ↓ 1xx successful transaction ↓ */
@@ -104,6 +110,7 @@ typedef enum {
 /* ↓ 4xx server error ↓ */
 	S_SERVER_ERROR									= 400,
 	S_COMMAND_NOT_IMPLEMENTED						,
+	S_SERVER_WRITE_ERROR							,
 	S_CANNOT_SATISFY_REQUEST						= 410,
 	S_UNRECOGNISED_ENCODING						
 } Status_code;

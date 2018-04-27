@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 
 #include "application.h"
 
@@ -21,8 +22,7 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //80-89
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " " //90-99
 	,
-								
-		"101 Command recognised", " ",
+		"101 Command recognised", " ",						
 		" ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
@@ -57,8 +57,14 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //329
 		" ", " " , " " , " ", " " , " ", " ", " ", " ", " ", //339
 		"340 File not found",
-		"341 Illegal file path"
-	
+		"341 Illegal file path",
+		" ", " ", " ", " ", " ", " ", " ", " ", 			//349
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//359
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//369
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//379
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//389
+		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//399
+		"400 Server error", " ", "402 Server write error"
 };
 
 
@@ -116,7 +122,7 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 {
 	FILE* input_file;
 
-	if( ( input_file = fopen(filepath, READ_ONLY) )== NULL )
+	if( ( input_file = fopen(filepath, READ_ONLY) ) == NULL )
 	{
 		if(verbose)
 			printf("File does not exist\n");
@@ -143,36 +149,62 @@ FILE *file_parameters(char *filepath, long int *size_of_file)
 }
 
 //Function to append the data to the request
-int append_data(FILE* input_file, char** request_buf, long int size_of_file)
-{	
-	long int header_length = strlen(*request_buf) + 1;
+int send_data(int sockfd, char * filepath)
+{
+	long int size_of_file = -1;
+	long int data_unsent = 0;
+	int nrx;
+	
+	FILE * file = file_parameters(filepath, &size_of_file);
+	
+	if( size_of_file == -1 )
+	{
+		perror("Error opening file");
+		return EXIT_FAILURE;
+	}
+	
 
-	uint8_t* data = malloc(size_of_file + 1);
-	if(data == NULL)
+	data_unsent = size_of_file;
+	
+	if( verbose )
+		printf("Data Bytes to be sent: %ld", data_unsent);
+	if( data_unsent > BUFSIZE )
 	{
-		perror("Error appending data: ");
-		return EXIT_FAILURE;
+		char * data_buf = malloc( BUFSIZE + 1 );
+		if( data_buf == NULL)
+		{
+			perror("Error in send_data");
+			return EXIT_FAILURE;
+		}
+		
+		if( verbose )
+			printf("\nData unread = %ld\n", data_unsent);
+		
+		while( data_unsent >= BUFSIZE )
+		{
+			fread(data_buf, 1, BUFSIZE, file);
+			nrx = send(sockfd, data_buf, BUFSIZE, 0);
+			
+			data_unsent = data_unsent - BUFSIZE;
+		}
+		
+		if( data_unsent > 0)
+		{
+			fread(data_buf, 1, data_unsent, file);
+			//buf[data_unread + 1] = '\0';
+			nrx = send(sockfd, data_buf, BUFSIZE, 0);
+			data_unsent = data_unsent - BUFSIZE;
+		}
+		free(data_buf);
+		
+		if(data_unsent != 0)
+			return(EXIT_FAILURE);
+		
+		printf("\nData unread = %ld\n", data_unsent);
 	}
-	data[size_of_file] = '\0';
-	// Reallocate memory to account for the headers
-	// Should be rewritten with temporary pointer to prevent losing access 
-	// 	to memory
-	*request_buf = (char *) realloc(*request_buf, size_of_file + header_length);
-	if(request_buf == NULL)
-	{
-		perror("Error appending data: ");
-		return EXIT_FAILURE;
-	}
-
-	//Read in data from the file
-	if(size_of_file != fread(data, 1, size_of_file, input_file))
-	{
-		fprintf(stderr, "append_data: error in reading the file: %s", 
-				strerror(ferror(input_file)));
-		return EXIT_FAILURE;
-	}
-	strcat(*request_buf, (char *)data);
-	free(data);
+	
+	fclose(file);
+	
 	return EXIT_SUCCESS;
 }
 
@@ -269,30 +301,8 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
  * <head>	pointer to Header structure to populate wth parsed values 
  * <index>	pointer to integer that contains index of beginning of current header being processed */
 int parse_header(char * buff, Header * head, int * index)
-{
-	// !!!!!!!!!!!!!!!!!!!TODO remove this
-	verbose = true;
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	int count = 0;
-	bool valid = false;
-	/*
-		char * headbuff = calloc(1, MAX_HEADER_SIZE+1);
-		if(NULL == headbuff)
-		{
-			fprintf(stderr, "%s: couldn't allocate memory for header.\n", 
-					__FUNCTION__);
-			return EXIT_FAILURE;
-		}
-		for(count = 0; buff[*index + count] != ':'; count++){
-			printf("[%c(%d)]", headbuff[count], count);
-			headbuff[count] = buff[*index + count];
-		}
-		headbuff[count++] = NULLBYTE;
-		
-		*index += count;
-		buff = buff + *index;
-	*/
-	// Extract headers
+{	
+	// extract all headers from <buff>
 	Header_array_t headers;
 	bool headers_finished;
 	int n_headers;
@@ -307,8 +317,10 @@ int parse_header(char * buff, Header * head, int * index)
 		pos = extract_header(next_start, &headers, &headers_finished);
 	}
 	if(verbose) printf("%s:headers finished.\n", __FUNCTION__);
-	
-	// Process each possible header
+	*index = pos - buff;
+	// all headers extracted
+
+	// Process each header in <headers>
 	for(int i = 0; i < NUM_HEAD && (size_t) i < headers.used; i++)	
 		if(!strcmp(headers.array[i].name, header_name[i]))
 		{
@@ -316,48 +328,25 @@ int parse_header(char * buff, Header * head, int * index)
 			{
 				case DATA_LENGTH:
 					head->data_length = atoi(headers.array[i].value);
-					valid = true;
-
 #ifdef DEBUG
 					printf("parse_header: Data length is %ld bytes\n", (head->data_length));
-					printf("parse_header: Input is valid == %d\n", valid);
 #endif
 					break;
 				case TIMEOUT:
-					// TODO convert this function
-					//Count amount of char in header value
-					for(count = 0; buff[count++] != '\n';)    
-						//Need to read number here
-						(head->timeout) = strtol(buff, NULL, DEC);
+					head->timeout = strtol(headers.array[i].value, NULL, DEC);
 					//Index is now at beginning of next header value
-					buff += count + 1;
-					*index += count;
-					valid = true;
-
 #ifdef DEBUG
 					printf("parse_header: Timeout is %ld bytes\n", (head->timeout));
-					printf("parse_header: Input is valid == %d\n", valid);
 #endif
-					//printf("buff points to = %c\n", buff[0]);
 					break;
+				default:
+					return S_HEADER_NOT_RECOGNISED;				
 			}
 		}
-	if(!valid){
-		perror("head parse: Bad header value\n");
-		return S_HEADER_NOT_RECOGNISED;
-	}
-	else
-	{
-		printf("%s(%d)\n", __FUNCTION__, __LINE__);
-		if(buff[*index] == '\n')
-		{
-			printf("parse_header: End of headers. Nothing left to process\n");
-			(*index) = (*index) + 1;// start of data index
-			return 0;
-		} 
+	
+	return EXIT_SUCCESS;
 
-	}
-	return EXIT_FAILURE;
+	
 }
 
 // TODO implement error checking here
@@ -385,4 +374,82 @@ void free_header_array(Header_array_t *a)
 	free(a->array);
 	a->array = NULL;
 	a->used = a->size = 0;
+}
+
+	//Function to read in the data after the headers
+	//Returns -1 on failure, 0 on success
+	//Two modes: Print, or Write:
+int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd)
+{
+	int remainder_length;
+	int buffer_size = BUFSIZE;
+	int data_unread = 0;
+	int nrx;
+	FILE * file;
+	
+	remainder_length = strlen(excess);
+	
+	if( mode_data == WRITE)
+	{
+		file = fopen(filepath, "r+w");
+		if( NULL == file )
+		{
+			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
+			return(EXIT_FAILURE);
+		}
+	}
+
+	if(verbose)
+	{
+		if(mode_data == PRINT)
+		printf("Your boy here printing out da list of all dem files\n");
+		if(mode_data == WRITE)
+		printf("Your boy here writing the stuff into dat file\n");
+		printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
+	}
+	
+	if(mode_data == PRINT)
+		printf("excess = %s\n", (char *)excess );
+	if(mode_data == WRITE)
+		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
+	
+	rewind(file);
+	if( data_length > remainder_length )
+	{
+		data_unread = data_length - remainder_length;
+		char * buf = malloc( buffer_size + 1 );
+		printf("\nData unread = %d\n", data_unread);
+		
+		while( data_unread >= buffer_size )
+		{
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			if( mode_data == PRINT )
+				printf("%s", (char *)buf );
+			
+			if( mode_data == WRITE )
+				fwrite(buf, 1, strlen(buf), file);
+			
+			data_unread = data_unread - buffer_size;
+		}
+		
+		
+		if( data_unread > 0)
+		{
+			buffer_size = data_unread;
+			nrx = recv(sockfd, buf, buffer_size, 0);
+			buf[data_unread] = '\0';
+			if( mode_data == PRINT )
+				printf("%s", (char *)buf );
+			if( mode_data == WRITE )
+				fwrite(buf, 1, strlen(buf), file);
+			data_unread = data_unread - buffer_size;
+		}
+		free(buf);
+			//printf("\nData unread = %d\n", data_unread);
+	}
+	if(data_unread != 0)
+		return(EXIT_FAILURE);
+	
+	
+	return(EXIT_SUCCESS);
 }
