@@ -1,4 +1,4 @@
-/*  
+/*
 	 */
 
 #include <errno.h>
@@ -193,6 +193,8 @@ int main()
 									
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
+	
+	//Headers need to be set up and sent seperately
     char filename[100];
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
@@ -207,7 +209,7 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 
 	sprintf(filename, "Server_Files/%s", filepath);
 
-	if( read_data( buf, PRINT, filepath, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, WRITE, filepath, data_length, connectSocket) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
 		return EXIT_FAILURE;
@@ -255,6 +257,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	}
 	else
 	{
+		printf("Filename: |%s|\n",dir_name);
 		fprintf(stderr, "Can't open the directory\n");
 		send_status(340, connectSocket); // define new error
 	}

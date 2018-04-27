@@ -360,6 +360,8 @@ int gift_request(char ** requestbuf, char * filepath)
 	char data_len_buf[20]; // Probably big enough
 	snprintf(data_len_buf, 20, "%d", size_of_file);
 	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
+	//append_header(requestbuf, header_name[TIMEOUT], 10000);
+
 
 	finish_headers(requestbuf);
 	
