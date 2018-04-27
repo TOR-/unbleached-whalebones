@@ -11,7 +11,7 @@
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
-#define BUFSIZE 80
+#define BUFSIZE 1024
 
 
 #define SWDIR	"Server_Files/"
