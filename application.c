@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -116,58 +117,62 @@ int finish_headers(char ** headers)
 	return EXIT_SUCCESS;
 }
 
-//Function to check the parameters of a file
-//Returns NULL if file does not exist, or if there is an error in reading the file
-FILE *file_parameters(char *filepath, long int *size_of_file)
+/* Returns length of file or EXIT_FAILURE 
+ * Opens and closes file at <filepath> */
+long int file_length(char *filepath)
 {
-	FILE* input_file;
+	FILE* file;
+	int length = 0;
 
-	if( ( input_file = fopen(filepath, READ_ONLY) ) == NULL )
+	if(verbose) printf("%s: checking length of %s in bytes.\n",
+			__FUNCTION__, filepath);
+	if((file = fopen(filepath, READ_ONLY)) == NULL )
 	{
-		if(verbose)
-			printf("File does not exist\n");
-		return input_file;
+		fprintf(stderr, "%s:error opening %s: %s",
+				__FUNCTION__, filepath, strerror(errno));
+		return EXIT_FAILURE;
 	}
 	else
 	{
-		if(verbose)
-			printf("Checking file parameters.\n");
-		fseek(input_file, 0L, SEEK_END);
-		*size_of_file = ftell(input_file);
-		if(verbose)
-			printf("File is %ld bytes long.\n", *size_of_file);
-		if(*size_of_file < 0)
+		fseek(file, 0L, SEEK_END);
+		length = ftell(file);
+		if(length < 0)
 		{
-			perror("Error in file_parameters: File size is less than zero: ");
-			return NULL;
+			fprintf(stderr, "%s: file length < 0 (%d < 0) %s.\n", __FUNCTION__, length, strerror(errno));
+		} else {
+			if(verbose)	
+				printf("%s:%s is %d bytes long.\n", __FUNCTION__, filepath, length);
 		}
-
-		rewind(input_file);
+		if(fclose(file) != 0)
+			fprintf(stderr, "%s:failed to close %s, %s.\n", 
+					__FUNCTION__, filepath, strerror(errno));
+		return length;
 	}
-
-	return input_file;
 }
 
-//Function to append the data to the request
+//Function to send data 
 int send_data(int sockfd, char * filepath)
 {
-	long int size_of_file = -1;
+	long int length = -1;
 	long int data_unsent = 0;
 	int nrx;
 	
-	FILE * file = file_parameters(filepath, &size_of_file);
-	
-	if( size_of_file == -1 )
-	{
-		perror("Error opening file");
+	FILE * file;
+	if((file = fopen(filepath, READ_ONLY)) == NULL )
+	{	
+		fprintf(stderr, "%s:error opening %s: %s.\n",
+				__FUNCTION__, filepath, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	
+	if(EXIT_FAILURE == (length = file_length(filepath)))
+	// No need to print an error here, error printed in file_length
+		return length;
 
-	data_unsent = size_of_file;
+	data_unsent = length;
 	
 	if( verbose )
-		printf("Data Bytes to be sent: %ld", data_unsent);
+		printf("%s:%ld data bytes to be sent\n", __FUNCTION__, data_unsent);
 	if( data_unsent > BUFSIZE )
 	{
 		char * data_buf = malloc( BUFSIZE + 1 );
@@ -178,7 +183,7 @@ int send_data(int sockfd, char * filepath)
 		}
 		
 		if( verbose )
-			printf("\nData unread = %ld\n", data_unsent);
+			printf("Data unread = %ld bytes\n", data_unsent);
 		
 		while( data_unsent >= BUFSIZE )
 		{
@@ -200,7 +205,7 @@ int send_data(int sockfd, char * filepath)
 		if(data_unsent != 0)
 			return(EXIT_FAILURE);
 		
-		printf("\nData unread = %ld\n", data_unsent);
+		printf("%ld unsent data bytes.\n", data_unsent);
 	}
 	
 	fclose(file);

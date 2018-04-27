@@ -1,6 +1,3 @@
-/*  
-	 */
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +32,7 @@ int main()
 	int index = 0;      		// interfunction index reference point
 	int numRx = 0;      		// number of bytes received
 	char request[MAXREQUEST];   // array to hold request from client
-	verbose = false;			//For debugging purposes
+	verbose = true;				//For debugging purposes
 	
 	Header headerRx;
 	Request reqRx;
@@ -52,9 +49,11 @@ int main()
 
 	// Set up the server to use this socket and the specified port
 	retVal = TCPserverSetup(listenSocket, SERVER_PORT);
-	if (retVal < 0) 			// check for error
-		return EXIT_FAILURE;   	// End session with err code EXIT_FAILURE
-	
+	if (retVal != EXIT_SUCCESS) 			// check for error
+	{
+		TCPcloseSocket(listenSocket);
+		return retVal;   	// End session with err code EXIT_FAILURE
+	}
 	/*Server listens until a request to create a connection is received.
 	  Once server obtains a request, the fidelity of the request command
 	  and header values and arguments are tested. If an invalid value is
@@ -147,7 +146,7 @@ int main()
 
 				if(verbose)
 				{
-					printf("\nCommand:%d\n", reqRx.cmdRx);
+					printf("\nCommand:%s\n", mode_strs[reqRx.cmdRx]);
 					printf("Filepath:%s\n", reqRx.filepath);
 					printf("Data-length:%ld\n", headerRx.data_length);
 					printf("Timeout:%ld\n\n", headerRx.timeout);
@@ -228,9 +227,8 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	char dir_name[100]; // large enough to store full file path
 	char *response = NULL; // to be realloc memory
 	int retVal = 0;
-
-	strcat(dir_name, "Server_Files/");
-
+	const char * server_root = "Server_Files/";
+	strncpy(dir_name, server_root, strlen(server_root) + 1);
 	if(strcmp(reqRx.filepath, ".")) // if subdirectory required append to file path
 	{   
 		strcat(dir_name, reqRx.filepath);
@@ -246,7 +244,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 		{
 			if (ep->d_name[0] != '.')
 			{ 
-				char_count += strlen(ep->d_name);
+				char_count += strlen(ep->d_name) + 1;
 				response = (char *)realloc(response, char_count);
 				index += sprintf(response + index, "%s\n", ep->d_name);
 			}
@@ -255,24 +253,34 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	}
 	else
 	{
-		fprintf(stderr, "Can't open the directory\n");
-		send_status(340, connectSocket); // define new error
+		fprintf(stderr, "%s:can't open the directory %s: %s\n",
+				__FUNCTION__, dir_name, strerror(errno));
+		send_status(S_FILE_NOT_FOUND, connectSocket); // define new error
 	}
 
-	char *dir_list = (char *)malloc(char_count + 3);
+	printf("REMOVE ONCE CHECKED THAT char_count == strlen(response) (%d %s %d)\n",
+			char_count, char_count == strlen(response)? "==":"!=", strlen(response));
+	char * headers, length[LONG_MAX_DIGITS +1];
+	snprintf(length, LONG_MAX_DIGITS, "%ld", strlen(response)); 
+	//append_header(&headers, header_name[DATA_LENGTH], length);
+	//finish_headers(&headers);
+	headers = malloc(strlen(header_name[DATA_LENGTH]) + 1 + LONG_MAX_DIGITS + 2 + 1);
+	sprintf(headers, "%s:%s\n\n", header_name[DATA_LENGTH], length);
+	char *res = (char *)malloc(strlen(headers) + strlen(response) + 1);
+	sprintf(res, "%s%s", headers, response);
 
-	sprintf(dir_list, "%d\n%s", char_count, response);
+	if(verbose) printf("response array = |%s|\n", res);
 
-	printf("response array = |%s|\n", dir_list);
-
-	retVal = send(connectSocket, dir_list, strlen(dir_list), 0);  // send bytes
+	send_status(S_COMMAND_SUCCESSFUL, connectSocket);
+	retVal = send(connectSocket, res, strlen(res), 0);  // send bytes
 
 	if( retVal == -1)  // check for error
 	{
-		printf("LIST: Error sending response\n%s\n", gai_strerror(errno));
+		printf("LIST: Error sending response\n%s\n", strerror(errno));
+		free(res);
 	}
-	else printf("Sent directory list message of %d bytes\n", retVal);
-
+	else if(verbose) printf("Sent directory list message of %d bytes\n", retVal);
+	free(res);
 	return 0;
 }
 
