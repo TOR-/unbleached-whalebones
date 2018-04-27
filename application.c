@@ -23,8 +23,8 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //80-89
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " " //90-99
 	,
-		"101 Command recognised", " ",						
-		" ", " ", " ", " ", " ", " ", " ", " ", 
+		"Connection successful", "Command recognised", "Connection Terminated",		
+		" ", " ", " ", " ", " ", " ", " ", "Command Successful", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 

@@ -290,20 +290,16 @@ int send_status(Status_code status, SOCKET connectSocket)
 	//hold buffer to send status to client
 	char * buff;
 
-	str_size = strlen((const char *)status_descriptions[status - 1]);
 	//+2 to store '\0' and '\n'
-	buff = (char *)malloc((str_size + 1)*sizeof(char));
-	
-	strcpy(buff, (char *)status_descriptions[status - 1]);
-	buff[str_size] = '\n';
+	buff = (char *)malloc(3 + 1 + str_size + 1);
+	sprintf(buff, "%d %s\n", status, status_descriptions[status]);
 
-	if(send(connectSocket, buff, str_size + 2, 0) == -1)
+	if(send(connectSocket, buff, strlen(buff), 0) == -1)
 	{
 		printf("send_status: Error using send()\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
-
-	return 0;
+	return EXIT_SUCCESS;
 }
 void end_connection(int connectSocket)
 {
