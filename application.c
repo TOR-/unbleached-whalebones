@@ -170,41 +170,41 @@ int send_data(int sockfd, char * filepath)
 		return length;
 
 	data_unsent = length;
+	printf("HELP: data length = %d\n", data_unsent);
 	
 	if( verbose )
 		printf("%s:%ld data bytes to be sent\n", __FUNCTION__, data_unsent);
-	if( data_unsent > BUFSIZE_SEND )
-	{
-		char * data_buf = malloc( BUFSIZE_SEND + 1 );
-		if( data_buf == NULL)
-		{
-			perror("Error in send_data");
-			return EXIT_FAILURE;
-		}
-		
-		if( verbose )
-			printf("Data unread = %ld bytes\n", data_unsent);
-		
-		while( data_unsent >= BUFSIZE_SEND )
-		{
-			fread(data_buf, 1, BUFSIZE_SEND, file);
-			nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
-			
-			data_unsent = data_unsent - nTx;
-		}
-		
-		if( data_unsent > 0)
-		{
-			fread(data_buf, 1, data_unsent, file);
-			//buf[data_unread + 1] = '\0';
-			nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
-			data_unsent = data_unsent - nTx;
-		}
-		free(data_buf);
 
-		if(data_unsent > 0)		// checks if all data has been sent	
-			return(EXIT_FAILURE);
+	char * data_buf = malloc( BUFSIZE_SEND + 1 );
+	if( data_buf == NULL)
+	{
+		perror("Error in send_data");
+		return EXIT_FAILURE;
 	}
+	
+	if( verbose )
+		printf("Data unread = %ld bytes\n", data_unsent);
+	
+	while( data_unsent >= BUFSIZE_SEND )
+	{
+		fread(data_buf, 1, BUFSIZE_SEND, file);
+		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
+		
+		data_unsent = data_unsent - nTx;
+	}
+	
+	if( data_unsent > 0)
+	{
+		fread(data_buf, 1, data_unsent, file);
+		//buf[data_unread + 1] = '\0';
+		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
+		data_unsent = data_unsent - nTx;
+	}
+	free(data_buf);
+
+	if(data_unsent > 0)		// checks if all data has been sent	
+		return(EXIT_FAILURE);
+	
 	fclose(file);
 	
 	return EXIT_SUCCESS;
