@@ -236,10 +236,11 @@ int list_server(Request reqRx, SOCKET connectSocket)
 		closedir(dp);
 		if( response == NULL )
 		{
+			char_count = 16;
 			new_response = (char *)realloc(response, char_count);	// realloc assigns new address if segmentation occurs
 				if(new_response != NULL)
 					response = new_response;
-					
+
 			sprintf(response, "Empty Directory\n");
 		}
 	}
@@ -257,7 +258,6 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	printf("response array = |%s|\n", dir_list);
 #endif
 
-	//send_error_status(110, connectSocket);
 	retVal = send(connectSocket, dir_list, strlen(dir_list), 0);  // send bytes
 
 	if( retVal == -1)  // check for error
