@@ -396,7 +396,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 	
 	if( mode_data == WRITE)
 	{
-		file = fopen(filepath, "r+w");
+		file = fopen(filepath, "w+");
 		if( NULL == file )
 		{
 			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
@@ -412,13 +412,15 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 		printf("Your boy here writing the stuff into dat file\n");
 		printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
 	}
-	
+	/*
+	if( data_length < remainder_length )
+		excess[data_length] = '\0';
+	*/
 	if(mode_data == PRINT)
 		printf("excess = %s\n", (char *)excess );
 	if(mode_data == WRITE)
 		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
 	
-	rewind(file);
 	if( data_length > remainder_length )
 	{
 		data_unread = data_length - remainder_length;
@@ -450,6 +452,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);
+		fclose(file);
 			//printf("\nData unread = %d\n", data_unread);
 	}
 	if(data_unread != 0)
