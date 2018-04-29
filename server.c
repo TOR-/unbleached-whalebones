@@ -23,12 +23,6 @@ char *create_status(Status_code, SOCKET);
 int send_error_status(Status_code,  SOCKET);
 int parse_request(Request * , Header * , char * );
 void end_connection(int, int);
-//char * check_parse_error(int error, char * err_msg);
-
-//char * check_parse_error(int error, char * err_msg)
-// request processign functions:
-
-//int send_error_response(int status_code, SOCKET connectSocket);
 
 int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
@@ -158,7 +152,7 @@ int main()
 						}
 						break;
 					case WEASEL:
-                        if(!weasel_server(reqRx, headerRx, connectSocket)) printf("\nmain: Cannot access filepath specified\n");
+                        if(weasel_server(reqRx, headerRx, connectSocket)) printf("\nmain: Cannot access filepath specified\n");
 						break;
 					case LIST:
 						if(!list_server(reqRx, connectSocket)) printf("\nmain: Contents of directory sent to client\n");
@@ -181,9 +175,17 @@ int main()
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
     char filename[100];
+	char weasel_header[100];
+
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-	send_error_status(110, connectSocket);
+	sprintf(weasel_header, "%sData-length:%d\n\n", create_status(110, connectSocket), file_length(filename));
+
+	if(send(connectSocket, weasel_header, strlen(weasel_header), 0) == -1)
+	{
+		printf("send_status: Error using send()\n");
+		return EXIT_FAILURE;
+	}
 
 	return send_data(connectSocket, filename);
 }
