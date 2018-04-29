@@ -175,7 +175,7 @@ int send_data(int sockfd, char * filepath)
 		printf("%s:%ld data bytes to be sent\n", __FUNCTION__, data_unsent);
 	if( data_unsent > BUFSIZE )
 	{
-		char * data_buf = malloc( BUFSIZE + 1 );
+		char * data_buf = malloc( BUFSIZE_SEND + 1 );
 		if( data_buf == NULL)
 		{
 			perror("Error in send_data");
@@ -185,20 +185,20 @@ int send_data(int sockfd, char * filepath)
 		if( verbose )
 			printf("Data unread = %ld bytes\n", data_unsent);
 		
-		while( data_unsent >= BUFSIZE )
+		while( data_unsent >= BUFSIZE_SEND )
 		{
-			fread(data_buf, 1, BUFSIZE, file);
-			nrx = send(sockfd, data_buf, BUFSIZE, 0);
+			fread(data_buf, 1, BUFSIZE_SEND, file);
+			nrx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
 			
-			data_unsent = data_unsent - BUFSIZE;
+			data_unsent = data_unsent - BUFSIZE_SEND;
 		}
 		
 		if( data_unsent > 0)
 		{
 			fread(data_buf, 1, data_unsent, file);
 			//buf[data_unread + 1] = '\0';
-			nrx = send(sockfd, data_buf, BUFSIZE, 0);
-			data_unsent = data_unsent - BUFSIZE;
+			nrx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
+			data_unsent = data_unsent - BUFSIZE_SEND;
 		}
 		free(data_buf);
 		
@@ -297,7 +297,7 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 		return NULL;
 	}
 	if(verbose) printf("extract_header: header %s read, value %s.\n",
-			header.name, header.value);
+	  header.name, header.value);
 	insert_header_array(header_array, header);
 	return term + 1;
 }
@@ -386,13 +386,13 @@ void free_header_array(Header_array_t *a)
 	//Two modes: Print, or Write:
 int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd)
 {
-	int remainder_length;
-	int buffer_size = BUFSIZE;
+	int excess_length;
+	int buffer_size = BUFSIZE_REC;
 	int data_unread = 0;
 	int nrx;
-	FILE * file;
+	FILE * file = NULL;
 	
-	remainder_length = strlen(excess);
+	excess_length = strlen(excess);
 	
 	if( mode_data == WRITE)
 	{
@@ -410,20 +410,21 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 		printf("Your boy here printing out da list of all dem files\n");
 		if(mode_data == WRITE)
 		printf("Your boy here writing the stuff into dat file\n");
-		printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
+		printf("Excess Length: %d\n, Data Length: %d\n", excess_length, data_length);
 	}
-	/*
-	if( data_length < remainder_length )
+
+	//If we have read in more than the data length to our temporary buffer, we must insert a NULL byte
+	if( data_length < excess_length)
 		excess[data_length] = '\0';
-	*/
-	if(mode_data == PRINT)
+
+  if(mode_data == PRINT)
 		printf("excess = %s\n", (char *)excess );
 	if(mode_data == WRITE)
-		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
+		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, excess_length, file), excess_length);
 	
-	if( data_length > remainder_length )
+	if( data_length > excess_length )
 	{
-		data_unread = data_length - remainder_length;
+		data_unread = data_length - excess_length;
 		char * buf = malloc( buffer_size + 1 );
 		printf("\nData unread = %d\n", data_unread);
 		
@@ -452,9 +453,9 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);
-		fclose(file);
-			//printf("\nData unread = %d\n", data_unread);
 	}
+  if(mode_data==WRITE)
+		  fclose(file);
 	if(data_unread != 0)
 		return(EXIT_FAILURE);
 	
