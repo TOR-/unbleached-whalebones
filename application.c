@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -22,8 +23,8 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //80-89
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " " //90-99
 	,
-		"101 Command recognised", " ",						
-		" ", " ", " ", " ", " ", " ", " ", " ", 
+		"Connection successful", "Command recognised", "Connection Terminated",		
+		" ", " ", " ", " ", " ", " ", " ", "Command Successful", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 
@@ -116,92 +117,93 @@ int finish_headers(char ** headers)
 	return EXIT_SUCCESS;
 }
 
-//Function to check the parameters of a file
-//Returns NULL if file does not exist, or if there is an error in reading the file
-FILE *file_parameters(char *filepath, long int *size_of_file)
+/* Returns length of file or EXIT_FAILURE 
+ * Opens and closes file at <filepath> */
+long int file_length(char *filepath)
 {
-	FILE* input_file;
+	FILE* file;
+	int length = 0;
 
-	if( ( input_file = fopen(filepath, READ_ONLY) ) == NULL )
+	if(verbose) printf("%s: checking length of %s in bytes.\n",
+			__FUNCTION__, filepath);
+	if((file = fopen(filepath, READ_ONLY)) == NULL )
 	{
-		if(verbose)
-			printf("File does not exist\n");
-		return input_file;
+		fprintf(stderr, "%s:error opening %s: %s",
+				__FUNCTION__, filepath, strerror(errno));
+		return EXIT_FAILURE;
 	}
 	else
 	{
-		if(verbose)
-			printf("Checking file parameters.\n");
-		fseek(input_file, 0L, SEEK_END);
-		*size_of_file = ftell(input_file);
-		if(verbose)
-			printf("File is %ld bytes long.\n", *size_of_file);
-		if(*size_of_file < 0)
+		fseek(file, 0L, SEEK_END);
+		length = ftell(file);
+		if(length < 0)
 		{
-			perror("Error in file_parameters: File size is less than zero: ");
-			return NULL;
+			fprintf(stderr, "%s: file length < 0 (%d < 0) %s.\n", __FUNCTION__, length, strerror(errno));
+		} else {
+			if(verbose)	
+				printf("%s:%s is %d bytes long.\n", __FUNCTION__, filepath, length);
 		}
-
-		rewind(input_file);
+		if(fclose(file) != 0)
+			fprintf(stderr, "%s:failed to close %s, %s.\n", 
+					__FUNCTION__, filepath, strerror(errno));
+		return length;
 	}
-
-	return input_file;
 }
 
-//Function to append the data to the request
+//Function to send data 
 int send_data(int sockfd, char * filepath)
 {
-	long int size_of_file = -1;
+	long int length = -1;
 	long int data_unsent = 0;
-	int nrx;
+	int nTx;
 	
-	FILE * file = file_parameters(filepath, &size_of_file);
-	
-	if( size_of_file == -1 )
-	{
-		perror("Error opening file");
+	FILE * file;
+	if((file = fopen(filepath, READ_ONLY)) == NULL )
+	{	
+		fprintf(stderr, "%s:error opening %s: %s.\n",
+				__FUNCTION__, filepath, strerror(errno));
 		return EXIT_FAILURE;
 	}
 	
+	if(EXIT_FAILURE == (length = file_length(filepath)))
+	// No need to print an error here, error printed in file_length
+		return length;
 
-	data_unsent = size_of_file;
+	data_unsent = length;
+	printf("HELP: data length = %d\n", data_unsent);
 	
 	if( verbose )
-		printf("Data Bytes to be sent: %ld", data_unsent);
-	if( data_unsent > BUFSIZE )
+		printf("%s:%ld data bytes to be sent\n", __FUNCTION__, data_unsent);
+
+	char * data_buf = malloc( BUFSIZE_SEND + 1 );
+	if( data_buf == NULL)
 	{
-		char * data_buf = malloc( BUFSIZE + 1 );
-		if( data_buf == NULL)
-		{
-			perror("Error in send_data");
-			return EXIT_FAILURE;
-		}
-		
-		if( verbose )
-			printf("\nData unread = %ld\n", data_unsent);
-		
-		while( data_unsent >= BUFSIZE )
-		{
-			fread(data_buf, 1, BUFSIZE, file);
-			nrx = send(sockfd, data_buf, BUFSIZE, 0);
-			
-			data_unsent = data_unsent - BUFSIZE;
-		}
-		
-		if( data_unsent > 0)
-		{
-			fread(data_buf, 1, data_unsent, file);
-			//buf[data_unread + 1] = '\0';
-			nrx = send(sockfd, data_buf, BUFSIZE, 0);
-			data_unsent = data_unsent - BUFSIZE;
-		}
-		free(data_buf);
-		
-		if(data_unsent != 0)
-			return(EXIT_FAILURE);
-		
-		printf("\nData unread = %ld\n", data_unsent);
+		perror("Error in send_data");
+		return EXIT_FAILURE;
 	}
+	
+	if( verbose )
+		printf("Data unread = %ld bytes\n", data_unsent);
+	
+	while( data_unsent >= BUFSIZE_SEND )
+	{
+		fread(data_buf, 1, BUFSIZE_SEND, file);
+		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
+		
+		data_unsent = data_unsent - nTx;
+	}
+	
+	if( data_unsent > 0)
+	{
+		fread(data_buf, 1, data_unsent, file);
+		//buf[data_unread + 1] = '\0';
+		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
+		data_unsent = data_unsent - nTx;
+	}
+	free(data_buf);
+
+	if(data_unsent > 0)		// checks if all data has been sent	
+		return(EXIT_FAILURE);
 	
 	fclose(file);
 	
@@ -292,7 +294,7 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 		return NULL;
 	}
 	if(verbose) printf("extract_header: header %s read, value %s.\n",
-			header.name, header.value);
+	  header.name, header.value);
 	insert_header_array(header_array, header);
 	return term + 1;
 }
@@ -381,20 +383,20 @@ void free_header_array(Header_array_t *a)
 	//Two modes: Print, or Write:
 int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd)
 {
-	int remainder_length;
-	int buffer_size = BUFSIZE;
+	int excess_length;
+	int buffer_size = BUFSIZE_REC;
 	int data_unread = 0;
 	int nrx;
-	FILE * file;
+	FILE * file = NULL;
 	
-	remainder_length = strlen(excess);
-	
+	excess_length = strlen(excess);
+
 	if( mode_data == WRITE)
 	{
-		file = fopen(filepath, "r+w");
+		file = fopen(filepath, "w+");
 		if( NULL == file )
 		{
-			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
+			fprintf(stderr, "read_data: failed to open file %s for writing.\n", filepath);
 			return(EXIT_FAILURE);
 		}
 	}
@@ -405,18 +407,17 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 		printf("Your boy here printing out da list of all dem files\n");
 		if(mode_data == WRITE)
 		printf("Your boy here writing the stuff into dat file\n");
-		printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
+		printf("Excess Length: %d\n, Data Length: %d\n", excess_length, data_length);
 	}
 	
 	if(mode_data == PRINT)
-		printf("excess = %s\n", (char *)excess );
+		printf("%s", (char *)excess );
 	if(mode_data == WRITE)
-		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
+		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, excess_length, file), excess_length);
 	
-	rewind(file);
-	if( data_length > remainder_length )
+	if( data_length > excess_length )
 	{
-		data_unread = data_length - remainder_length;
+		data_unread = data_length - excess_length;
 		char * buf = malloc( buffer_size + 1 );
 		printf("\nData unread = %d\n", data_unread);
 		
@@ -432,12 +433,12 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			data_unread = data_unread - buffer_size;
 		}
 		
-		
 		if( data_unread > 0)
 		{
 			buffer_size = data_unread;
 			nrx = recv(sockfd, buf, buffer_size, 0);
 			buf[data_unread] = '\0';
+			printf("buf: |%s|\n", buf);
 			if( mode_data == PRINT )
 				printf("%s", (char *)buf );
 			if( mode_data == WRITE )
@@ -445,11 +446,12 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);
-			//printf("\nData unread = %d\n", data_unread);
 	}
+  	if(mode_data == WRITE)
+		  fclose(file);
+
 	if(data_unread != 0)
 		return(EXIT_FAILURE);
-	
-	
+
 	return(EXIT_SUCCESS);
 }

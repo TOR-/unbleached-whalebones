@@ -11,7 +11,9 @@
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
-#define BUFSIZE 1024
+#define BUFSIZE_SEND 512
+#define BUFSIZE_REC 256
+#define LONG_MAX_DIGITS 10
 
 
 #define SWDIR	"Server_Files/"
@@ -28,7 +30,7 @@ bool verbose;
 typedef enum {GIFT, WEASEL, LIST, NUM_MODE} Mode_t;
 extern const char * mode_strs[];
 extern const char * header_name[];
-typedef enum { DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
+typedef enum {DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
 typedef enum {PRINT, WRITE} Process;
 
 typedef struct head{ // Should members be character types?? Change before/after?
@@ -69,7 +71,7 @@ int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
 
 
-FILE* file_parameters(char *filepath, long int *file_size);
+long int file_length(char *filepath);
 int send_data(int sockfd, char * filepath);
 
 
