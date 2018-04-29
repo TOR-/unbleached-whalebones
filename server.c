@@ -39,8 +39,8 @@ int main()
 	int retVal;         // return value from various functions //Count variable
 	int index = 0;      // interfunction index reference point
 	int numRx = 0;      // number of bytes received
-	char request[MAXREQUEST];   // array to hold request from client
-	verbose = false;
+	char *request = NULL;
+	verbose = true;
 	
 	Header headerRx;
 	Request reqRx;
@@ -84,6 +84,12 @@ int main()
 			reqRx.cmdRx = NUM_MODE;
 			reqRx.filepath = NULL;
 			reqRx.header = &headerRx;
+
+			if(NULL == (request = malloc(MAXREQUEST)))   // array to hold request from client
+			{
+				perror("Server main");
+				break;
+			}
 
 			//Read in first chunk of request
 			numRx = recv(connectSocket, request, MAXREQUEST, 0);
@@ -161,7 +167,11 @@ int main()
 				end_connection(connectSocket, listenSocket);
 			
 			}//Keep inside
+			
 		}while(true);
+		
+		free(request);
+
 	}while(true);
 		
 	return 0;
@@ -183,17 +193,21 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 	char filename [1000];
 
 	sprintf(filename, "Server_Files/%s", filepath);
+	send_error_status(110, connectSocket);
 
 	if( read_data( buf, WRITE, filename, data_length, connectSocket) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
+		send_error_status(402, connectSocket); // error code ??
 		return EXIT_FAILURE;
 	}
 	else
 	{
 		printf("gift_server: All good - file written\n");
+		send_error_status(110, connectSocket);
 		return EXIT_SUCCESS;
 	}
+
 }
 
 int list_server(Request reqRx, SOCKET connectSocket)
@@ -269,6 +283,8 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	return 0;
 }
 
+//TODO MAKE THE FOLLOWING TWO FUNCTIONS INTO ONE FUNCTION
+
 char * create_status(Status_code status, SOCKET connectSocket)
 {
 	int str_size;
@@ -292,7 +308,7 @@ int send_error_status(Status_code status, SOCKET connectSocket)
 	str_size = strlen((const char *)status_descriptions[status - 1]);
 	//+2 to store '\0' and '\n'
 	buff = (char *)malloc(3 + 1 + str_size + 1);
-	sprintf(buff, "%d %s\n", status, status_descriptions[status]);
+	sprintf(buff, "%d %s\n\n", status, status_descriptions[status]);
 
 	if(send(connectSocket, buff, strlen(buff), 0) == -1)
 	{
