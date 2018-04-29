@@ -1,4 +1,4 @@
-CC:=gcc
+CC:=clang-6.0
 LIBS:=
 CFLAGS:= -Wall -Wextra -Wno-unused-parameter -g $(LIBS)
 DEPS:= CS_TCP.h application.h

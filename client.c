@@ -36,7 +36,6 @@ int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath, He
 #define READ_ONLY "r"
 #define MAXRESPONSE 1024
 
-FILE * file_parameters(char * filepath, long int *file_size);
 char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
@@ -348,25 +347,25 @@ int list_request(char ** requestbuf, char * filepath)
 
 int gift_request(char ** requestbuf, char * filepath)
 {
-	FILE *input_file;
+	FILE *file;
 	long int size_of_file;
 	
-	input_file = file_parameters(filepath, &size_of_file);
-	if(input_file == NULL)
-	{
-		printf("GIFT_CLIENT: Error opening file for transmission\n");
+	//input_file = file_parameters(filepath, &size_of_file);
+
+	if((file = fopen(filepath, READ_ONLY)) == NULL )
+	{	
+		fprintf(stderr, "%s:error opening %s: %s.\n",
+				__FUNCTION__, filepath, strerror(errno));
 		return EXIT_FAILURE;
 	}
-	char data_len_buf[20]; // Probably big enough
-	snprintf(data_len_buf, 20, "%d", size_of_file);
+	size_of_file = file_length(filepath);
+	char data_len_buf[LONG_MAX_DIGITS + 1];
+	snprintf(data_len_buf, LONG_MAX_DIGITS, "%ld", size_of_file);
 	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
 	//append_header(requestbuf, header_name[TIMEOUT], 10000);
 
 
 	finish_headers(requestbuf);
-	
-	
-	
 	return EXIT_SUCCESS;
 }
 
