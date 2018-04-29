@@ -1,15 +1,3 @@
-/*  EEEN20060 Communication Systems
-	Simple TCP server program, to demonstrate the basic concepts,
-	using IP version 4.
-	It listens on a specified port until a client connects.
-	Then it waits for a request from the client, and keeps trying
-	to receive bytes until it finds the end marker.
-	Then it sends a long response to the client, which includes
-	the last part of the request received.
-	Then it tidies up and stops.
-	This program is not robust - if a problem occurs, it just
-	tidies up and exits, with no attempt to fix the problem.  */
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -224,11 +212,11 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	if(strcmp(reqRx.filepath, ".")) // if subdirectory required append to file path
 	{   
 		strcat(dir_name, reqRx.filepath);
-		dir_name[strlen(dir_name)-1] = '\0'; //remove extra SPACE character
+		dir_name[strlen(dir_name)] = '\0'; 
 	}
-
+	printf("dir_name = %s\n", dir_name);
 	dp = opendir(dir_name); // open directory
-	//include length for joe
+	
 	if(dp != NULL)
 	{
 		int index = 0;
@@ -246,16 +234,24 @@ int list_server(Request reqRx, SOCKET connectSocket)
 			}
 		}
 		closedir(dp);
+		if( response == NULL )
+		{
+			new_response = (char *)realloc(response, char_count);	// realloc assigns new address if segmentation occurs
+				if(new_response != NULL)
+					response = new_response;
+					
+			sprintf(response, "Empty Directory\n");
+		}
 	}
 	else
 	{
 		fprintf(stderr, "Can't open the directory\n");
-		//send_error_status(340, connectSocket); // define new error
+		send_error_status(340, connectSocket); // define new error
 	}
 
 	char *dir_list = (char *)malloc(char_count + 20); // 20 provides room for length of header
 
-	sprintf(dir_list, "%sData-length:%d\n\n%s\n", create_status(110, connectSocket), char_count, response); // CHANGE TO WHAT CLIENT WANTS TO RECEIVE
+	sprintf(dir_list, "%sData-length:%d\n\n%s", create_status(110, connectSocket), char_count, response); // CHANGE TO WHAT CLIENT WANTS TO RECEIVE
 
 #ifdef DEBUG
 	printf("response array = |%s|\n", dir_list);

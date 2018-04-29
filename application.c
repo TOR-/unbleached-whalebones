@@ -417,7 +417,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 		excess[data_length] = '\0';
 	*/
 	if(mode_data == PRINT)
-		printf("excess = %s\n", (char *)excess );
+		printf("%s", (char *)excess );
 	if(mode_data == WRITE)
 		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
 	
@@ -452,12 +452,12 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);
-		fclose(file);
-			//printf("\nData unread = %d\n", data_unread);
+
+		if( mode_data == WRITE )
+			fclose(file);
 	}
 	if(data_unread != 0)
 		return(EXIT_FAILURE);
-	
-	
+
 	return(EXIT_SUCCESS);
 }

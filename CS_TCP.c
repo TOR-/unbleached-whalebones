@@ -40,7 +40,7 @@ SOCKET TCPSocket (int address_family)
 	}
 	else
 	{
-		printf("Socket created\n");
+		//printf("Socket created\n"); // set for verbose mode
 		socketCount++;    // increment the socket counter
 		return mySocket;  // return the socket identifier
 	}
