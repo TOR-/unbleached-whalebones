@@ -362,6 +362,8 @@ int gift_request(char ** requestbuf, char * filepath)
 	char data_len_buf[LONG_MAX_DIGITS + 1];
 	snprintf(data_len_buf, LONG_MAX_DIGITS, "%ld", size_of_file);
 	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
+	//append_header(requestbuf, header_name[TIMEOUT], 10000);
+
 
 	finish_headers(requestbuf);
 	return EXIT_SUCCESS;

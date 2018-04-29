@@ -75,7 +75,7 @@ const char *status_descriptions[] =
 int append_header(char ** headers, char * name, char * content)
 {
 	char * newheaders;
-	if(NULL == (newheaders = (char *) malloc(strlen(*headers) + strlen(name) + strlen(content) + 3)))
+	if(NULL == (newheaders = (char *) malloc(strlen(*headers) + strlen(name) + strlen(content) + 6)))
 		// +3 because of ':', '\n', '\0'
 	{
 		fprintf(stderr, "append-header: failed to allocate memory for header.\n");
@@ -384,7 +384,7 @@ void free_header_array(Header_array_t *a)
 	//Function to read in the data after the headers
 	//Returns -1 on failure, 0 on success
 	//Two modes: Print, or Write:
-int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd)
+int read_data(char * remainder, Process mode_data, char *  filepath, int data_length, int sockfd)
 {
 	int remainder_length;
 	int buffer_size = BUFSIZE;
@@ -392,14 +392,16 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 	int nrx;
 	FILE * file;
 	
-	remainder_length = strlen(excess);
+	remainder_length = strlen(remainder);
 	
 	if( mode_data == WRITE)
 	{
-		file = fopen(filepath, "r+w");
+		errno = 0;
+		file = fopen(filepath, "w+");
 		if( NULL == file )
 		{
-			fprintf(stderr, "weasel_response: failed to open file %s for writing.\n", filepath);
+			fprintf(stderr, "read_data: failed to open file %s for writing.\n", filepath);
+			printf("Error %d \n", errno);
 			return(EXIT_FAILURE);
 		}
 	}
@@ -407,18 +409,17 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 	if(verbose)
 	{
 		if(mode_data == PRINT)
-		printf("Your boy here printing out da list of all dem files\n");
+			printf("Your boy here printing out da list of all dem files\n");
 		if(mode_data == WRITE)
-		printf("Your boy here writing the stuff into dat file\n");
-		printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
+			printf("Your boy here writing the stuff into dat file\n");
+			printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
 	}
 	
 	if(mode_data == PRINT)
-		printf("excess = %s\n", (char *)excess );
+		printf("%s", (char *)remainder );
 	if(mode_data == WRITE)
-		printf("characters written = %lu rem length = %d\n", fwrite(excess, 1, remainder_length, file), remainder_length);
+		printf("characters written = %lu rem length = %d\n", fwrite(remainder, 1, remainder_length, file), remainder_length);
 	
-	rewind(file);
 	if( data_length > remainder_length )
 	{
 		data_unread = data_length - remainder_length;
@@ -454,6 +455,9 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 	}
 	if(data_unread != 0)
 		return(EXIT_FAILURE);
+	
+	if(mode_data == WRITE)
+		fclose(file);
 	
 	
 	return(EXIT_SUCCESS);

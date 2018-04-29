@@ -192,6 +192,8 @@ int main()
 									
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
+	
+	//Headers need to be set up and sent seperately
     char filename[100];
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
@@ -206,7 +208,7 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 
 	sprintf(filename, "Server_Files/%s", filepath);
 
-	if( read_data( buf, PRINT, filepath, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, WRITE, filepath, data_length, connectSocket) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
 		return EXIT_FAILURE;
@@ -256,6 +258,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 		fprintf(stderr, "%s:can't open the directory %s: %s\n",
 				__FUNCTION__, dir_name, strerror(errno));
 		send_status(S_FILE_NOT_FOUND, connectSocket); // define new error
+
 	}
 
 	printf("REMOVE ONCE CHECKED THAT char_count == strlen(response) (%d %s %d)\n",
