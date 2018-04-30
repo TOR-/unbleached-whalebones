@@ -310,13 +310,12 @@ char * extract_header(char * buf, Header_array_t * header_array, bool * finished
 /* <buff>	points to first header in received buffer
  * <head>	pointer to Header structure to populate wth parsed values 
  * <index>	pointer to integer that contains index of beginning of current header being processed */
-int parse_header(char * buff, Header * head, int * index)
+int parse_header(char * buff, Header * head, int * index, Header_array_t * headers)
 {	
 	// extract all headers from <buff>
-	Header_array_t headers;
 	bool headers_finished;
 	int n_headers;
-	init_header_array(&headers, HEADERINITBUFLEN);
+	init_header_array(headers, HEADERINITBUFLEN);
 
 	char * next_start = buff + *index, * pos = buff + *index;
 	for(n_headers = 0, headers_finished = false; false == headers_finished && NULL != pos; n_headers++)
@@ -324,26 +323,26 @@ int parse_header(char * buff, Header * head, int * index)
 		// headers not finished, header was found
 		// save position of last terminator found in headers
 		next_start = pos;
-		pos = extract_header(next_start, &headers, &headers_finished);
+		pos = extract_header(next_start, headers, &headers_finished);
 	}
 	if(verbose) printf("%s:headers finished.\n", __FUNCTION__);
 	*index = pos - buff;
 	// all headers extracted
 
 	// Process each header in <headers>
-	for(int i = 0; i < NUM_HEAD && (size_t) i < headers.used; i++)	
-		if(!strcmp(headers.array[i].name, header_name[i]))
+	for(int i = 0; i < NUM_HEAD && (size_t) i < headers->used; i++)	
+		if(!strcmp(headers->array[i].name, header_name[i]))
 		{
 			switch(i)
 			{
 				case DATA_LENGTH:
-					head->data_length = atoi(headers.array[i].value);
+					head->data_length = atoi(headers->array[i].value);
 #ifdef DEBUG
 					printf("parse_header: Data length is %ld bytes\n", (head->data_length));
 #endif
 					break;
 				case TIMEOUT:
-					head->timeout = strtol(headers.array[i].value, NULL, DEC);
+					head->timeout = strtol(headers->array[i].value, NULL, DEC);
 					//Index is now at beginning of next header value
 #ifdef DEBUG
 					printf("parse_header: Timeout is %ld bytes\n", (head->timeout));
@@ -353,10 +352,7 @@ int parse_header(char * buff, Header * head, int * index)
 					return S_HEADER_NOT_RECOGNISED;				
 			}
 		}
-	
 	return EXIT_SUCCESS;
-
-	
 }
 
 // TODO implement error checking here
@@ -385,13 +381,26 @@ void free_header_array(Header_array_t *a)
 	a->array = NULL;
 	a->used = a->size = 0;
 }
+/* Returns index of <target_header> in <headers> or EXIT_FAILURE on error */
+int header_search(char * target_header, Header_array_t * headers)
+{
+	size_t i;
+	for(i = 0; i < headers->used ; i++)
+	{
+		if(0 == strcmp(headers->array[i].name, target_header))
+		{
+			return i;
+		}
+	}
+	return EXIT_FAILURE;
+}
 
 /* Function to read in data after the headers
  * Returns EXIT_FAILURE or EXIT_SUCCESS where appropriate
  * Two modes: 
  * 	Print: write data to stdout (e.g. LIST)
  * 	Write: write data to file at <filepath> (e.g. WEASEL) */
-int read_data(char * remainder, Process mode_data, char * filepath, int sockfd)
+int read_data(char * remainder, Process mode_data, char * filepath, int sockfd, Header_array_t * headers)
 {
 	int remainder_length;
 	int buffer_size = BUFSIZE;
@@ -417,11 +426,11 @@ int read_data(char * remainder, Process mode_data, char * filepath, int sockfd)
 	}
 	if( data_length < 0 )
 	{
-		fprintf(stderr, "%s:data length negative (%ld)\n", 
+		fprintf(stderr, "%s:data length negative (%d)\n", 
 				__FUNCTION__, data_length);
 		return EXIT_FAILURE;
 	} else if (verbose)
-		printf("%s:data length(%ld)\n", __FUNCTION__, data_length);
+		printf("%s:data length(%d)\n", __FUNCTION__, data_length);
 	//========== Data length retrieved
 
 	remainder_length = strlen(remainder);

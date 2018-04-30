@@ -24,7 +24,7 @@ const char * server_root = "Server_Files/"; // Server root directory
 static int send_status(Status_code,  SOCKET);
 static void end_connection(int);
 
-static int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
+static int gift_server(char * request, char * filepath,  SOCKET connectSocket, Header_array_t * headers);
 static int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 static int list_server(Request reqRx, SOCKET connectSocket);
 
@@ -138,7 +138,10 @@ int main()
 
 				// Parse header extracts all headers and args and returns 0
 				// if everything goes well. Err code otherwise.
-				if(parse_header(request, &headerRx, &index) > 1){ 
+				Header_array_t headers;
+				init_header_array(&headers, HEADERINITBUFLEN);
+
+				if(parse_header(request, &headerRx, &index, &headers) > 1){ 
 					if(verbose) printf("main: Bad header\n");
 					if(!send_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
 					if(verbose) printf("main: Terminating connection\n");
@@ -157,7 +160,7 @@ int main()
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
-						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
+						if(!gift_server((request + index), reqRx.filepath, connectSocket, &headers))
 						{	//If gift server exits with EXIT_SUCCESS, all good.
 							send_status(S_COMMAND_RECOGNISED, connectSocket);
 							if(verbose) printf("main: File written successfully\n");
@@ -189,7 +192,8 @@ int main()
 						break;
 				}
 				end_connection(connectSocket);
-			
+				// Free resources	
+				free_header_array(&headers);
 			}
 		}while(true);
 	}while(true);
@@ -228,13 +232,13 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 	return send_data(connectSocket, filename);
 }
 
-int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket)
+int gift_server(char * buf, char * filepath, SOCKET connectSocket, Header_array_t * headers )
 {
 	char filename[NAME_MAX];
 
 	sprintf(filename, "Server_Files/%s", filepath);
 
-	if( read_data( buf, WRITE, filepath, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, WRITE, filepath, connectSocket, headers) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
 		return EXIT_FAILURE;
@@ -248,7 +252,6 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 
 int list_server(Request reqRx, SOCKET connectSocket)
 {
-
 	DIR *dp;
 	struct dirent *ep; 
 	int char_count = 0; // counts length of list to send

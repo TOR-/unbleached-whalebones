@@ -82,8 +82,11 @@ int send_data(int sockfd, char * filepath);
 bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
-int parse_header(char * buff, Header * head, int * index);
-int read_data(char * remainder,  Process mode_data, char * filepath, int sockfd);
+int parse_header(char * buff, Header * head, int * index, Header_array_t * headers);
+/* Returns index of <target_header> in <headers> or EXIT_FAILURE on error */
+int header_search(char * target_header, Header_array_t * headers);
+
+int read_data(char * remainder, Process mode_data, char * filepath, int sockfd, Header_array_t * headers);
 int send_data(int socket, char * filepath);
 
 typedef enum {

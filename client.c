@@ -39,13 +39,12 @@ int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath, He
 char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
-int header_search(char * target_header, Header_array_t * header_array);
 
 int main(int argc, char ** argv)
 {
 	char * filepath, ip[IPV4LEN];
 	uint16_t port = 0;
-	int mode;
+	int mode, ret = EXIT_FAILURE;
 
 	// Set flag default values
 	verbose = false;
@@ -74,8 +73,7 @@ int main(int argc, char ** argv)
 	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
 		return EXIT_FAILURE;
 
-	int ret = 0;
-	// ============= Send Request ================================================
+	// ============ Send Request =============================================
 	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
@@ -83,7 +81,7 @@ int main(int argc, char ** argv)
 	}
 	free(requestbuf);
 	
-	// ============= Sending Data ================================================
+	// ============ Sending Data =============================================
 	if( mode == GIFT )
 	{
 		int check = send_data(sockfd, filepath);
@@ -94,18 +92,18 @@ int main(int argc, char ** argv)
 	}
 	
 	
-	// ============= Request Sent ================================================
+	// ============ Request Sent =============================================
 
-	// ============= Deal with Response ==========================================
-	response(sockfd, mode, filepath);
+	// ============ Deal with Response =======================================
+	ret = response(sockfd, mode, filepath);
 	// FINISHED!!!!
 	free(filepath);
-	return EXIT_SUCCESS;
+	return ret;
 }
 
-/* =========================================================================
+/* ========================================================================
  * Utility functions for processing responses from the server
- * ========================================================================= */
+ * ======================================================================== */
 
 /* Extracts a status number and description from a buffer <buf> */
 char * extract_status(char * buf, char ** description, int *status_code)
@@ -173,7 +171,10 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 		}
 		ret = recv(sockfd, responsebuf + (MAXRESPONSE - spaces), spaces, 0);
 		// TODO zero unused space in responsebuf
-		for(pos = responsebuf; false == headers_finished && NULL != pos && *(last_term + 1) != '\n'; n_headers++)
+		for(pos = responsebuf; 
+				false == headers_finished && NULL != pos && 
+					*(last_term + 1) != '\n'; 
+				n_headers++)
 		{
 			// headers not finished, header was found
 			// save position of last terminator found in headers
@@ -185,7 +186,7 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 		if(MAXRESPONSE == spaces) // No header has been processed
 		{
 			fprintf(stderr, "response: header too long for processing.\n");
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
 	if(verbose) printf("client: finished receiveing headers.\n");
@@ -199,19 +200,16 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 	else if(verbose) printf("response: response status \"%d %s\".\n",
 			status_code, status_description);
 	free(status_description);
-	// Check mode to see if there should be data ( WEASEL )
-	// 	Process headers
-	//		search headers for data-length header	
-	//		if present: 
-	// 			Receive any data
+
 	if(verbose) 
-		printf("client: entering mode-specific response processing.\n Mode: %s.\n", 
-				mode_strs[mode]);
-	mode_response_funs[mode](last_term + 1, sockfd, filepath, &headers);
+		printf("%s:mode-specific response processing.\n Mode: %s.\n",
+				__FUNCTION__, mode_strs[mode]);
+	ret = EXIT_SUCCESS;
+	ret = mode_response_funs[mode](last_term + 1, sockfd, filepath, &headers);
 
 	free_header_array(&headers);
 	free(responsebuf);
-	return EXIT_SUCCESS;
+	return ret;
 }
 
 int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
@@ -221,7 +219,7 @@ int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	if( EXIT_SUCCESS 
-			!= read_data(remainder, WRITE, filepath, sockfd))
+			!= read_data(remainder, WRITE, filepath, sockfd, headers))
 	{
 		fprintf(stderr, "%s:Error has occured reading the attached data!", 
 			__FUNCTION__);
@@ -233,7 +231,7 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
 	if( EXIT_SUCCESS 
-			!= read_data(remainder, PRINT, filepath, sockfd))
+			!= read_data(remainder, PRINT, filepath, sockfd, headers))
 	{
 		fprintf(stderr, "%s:Error has occured reading the attached data!", 
 			__FUNCTION__);
@@ -421,16 +419,3 @@ char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * p
 	return filepath;
 }
 
-/* Returns index of <target_header> in <headers> or EXIT_FAILURE on error */
-int header_search(char * target_header, Header_array_t * headers)
-{
-	size_t i;
-	for(i = 0; i < headers->used ; i++)
-	{
-		if(0 == strcmp(headers->array[i].name, target_header))
-		{
-			return i;
-		}
-	}
-	return EXIT_FAILURE;
-}
