@@ -197,7 +197,7 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
     char filename[100];
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-	send_status(100, connectSocket);
+	send_status(S_COMMAND_SUCCESSFUL, connectSocket);
 
 	return send_data(connectSocket, filename);
 }
@@ -264,7 +264,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	printf("REMOVE ONCE CHECKED THAT char_count == strlen(response) (%d %s %d)\n",
 			char_count, char_count == strlen(response)? "==":"!=", strlen(response));
 	char * headers, length[LONG_MAX_DIGITS +1];
-	snprintf(length, LONG_MAX_DIGITS, "%ld", strlen(response)); 
+	snprintf(length, LONG_MAX_DIGITS, "%u", strlen(response)); 
 	//append_header(&headers, header_name[DATA_LENGTH], length);
 	//finish_headers(&headers);
 	headers = malloc(strlen(header_name[DATA_LENGTH]) + 1 + LONG_MAX_DIGITS + 2 + 1);
@@ -289,11 +289,11 @@ int list_server(Request reqRx, SOCKET connectSocket)
 
 int send_status(Status_code status, SOCKET connectSocket)
 {
-	int str_size;
+	int str_size = 0;
 	//hold buffer to send status to client
 	char * buff;
 
-	//+2 to store '\0' and '\n'
+	// Status code (3) ' ' (1) string '\n' (1)
 	buff = (char *)malloc(3 + 1 + str_size + 1);
 	sprintf(buff, "%d %s\n", status, status_descriptions[status]);
 
