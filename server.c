@@ -175,6 +175,8 @@ int main()
 					case LIST:
 						if(!list_server(reqRx, connectSocket)) if(verbose) printf("\nmain: Contents of directory sent to client\n");
 						break;
+					case NUM_MODE:
+						break;
 				}
 				if(verbose) printf("main: Exchange with client complete. Terminating session\n");
 				end_connection(connectSocket, listenSocket);
@@ -200,7 +202,7 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-	sprintf(weasel_header, "%sData-length:%d\n\n", create_status(110, connectSocket), file_length(filename));
+	sprintf(weasel_header, "%sData-length:%ld\n\n", create_status(110, connectSocket), file_length(filename));
 
 	if(send(connectSocket, weasel_header, strlen(weasel_header), 0) == -1)
 	{
