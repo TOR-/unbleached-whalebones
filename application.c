@@ -48,24 +48,24 @@ const char *status_descriptions[] =
 		" ", " ", " ", " ", " ", " ", " " , " ", " ", " " //299
 	,
 	
-		"301 Command not recognised",
+		"Command not recognised",
 		" ",
 		"",
-		"304 Header argument invalid",
-		"305 Header not recognised",
+		"Header argument invalid",
+		"Header not recognised",
 		" ", " ", " ", " ",							//Code 309
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //319
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", //329
 		" ", " " , " " , " ", " " , " ", " ", " ", " ", " ", //339
-		"340 File not found",
-		"341 Illegal file path",
+		"File not found",
+		"Illegal file path",
 		" ", " ", " ", " ", " ", " ", " ", " ", 			//349
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//359
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//369
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//379
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//389
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ",	//399
-		"400 Server error", " ", "402 Server write error"
+		"Server error", " ", "Server write error"
 };
 
 
