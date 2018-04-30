@@ -404,7 +404,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			return(EXIT_FAILURE);
 		}
 	}
-	rewind(file);
+	//rewind(file);
 
 	if(verbose)
 	{
