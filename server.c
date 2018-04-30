@@ -141,7 +141,7 @@ int main()
 				printf("Data-length:%ld\n", headerRx.data_length);
 				printf("Timeout:%ld\n\n", headerRx.timeout);
 #endif 
-				rem = MAXREQUEST - index;
+				rem = MAXREQUEST - (index+1);
 
 				switch(reqRx.cmdRx)
 				{
