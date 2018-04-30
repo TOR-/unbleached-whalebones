@@ -13,6 +13,8 @@
 #define MAX_STATUS	341
 #define DEC 10  //Number base for use with strtol
 #define NULLBYTE '\0'
+#define BUFSIZE_SEND 512
+#define BUFSIZE_REC 256
 #define LONG_MAX_DIGITS 10
 
 #define BUFSIZE 240
@@ -81,7 +83,7 @@ bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
-int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd);
+int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd, int rem);
 int send_data(int socket, char * filepath);
 
 typedef enum {
