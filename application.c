@@ -158,7 +158,7 @@ int send_data(int sockfd, char * filepath)
 	int nTx;
 	
 	FILE * file;
-	if((file = fopen(filepath, READ_ONLY)) == NULL )
+	if((file = fopen(filepath, "rb")) == NULL )
 	{	
 		fprintf(stderr, "%s:error opening %s: %s.\n",
 				__FUNCTION__, filepath, strerror(errno));
@@ -168,6 +168,7 @@ int send_data(int sockfd, char * filepath)
 	if(EXIT_FAILURE == (length = file_length(filepath)))
 	// No need to print an error here, error printed in file_length
 		return length;
+	rewind(file);
 
 	data_unsent = length;
 	printf("HELP: data length = %d\n", data_unsent);
@@ -184,20 +185,23 @@ int send_data(int sockfd, char * filepath)
 	
 	if( verbose )
 		printf("Data unread = %ld bytes\n", data_unsent);
-	
+	int total = 0;
 	while( data_unsent >= BUFSIZE_SEND )
 	{
-		fread(data_buf, 1, BUFSIZE_SEND, file);
+		printf("\nBytes read == >>%d<<\n", fread(data_buf, 1, BUFSIZE_SEND, file));
 		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
-		
+		printf("8==D Sent %d number of bytes\n", nTx);
+		total += nTx;
+		printf("%d\n", total);
 		data_unsent = data_unsent - nTx;
 	}
 	
 	if( data_unsent > 0)
 	{
-		fread(data_buf, 1, data_unsent, file);
-		//buf[data_unread + 1] = '\0';
-		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
+		nTx = send(sockfd, data_buf, fread(data_buf, 1, data_unsent, file), 0);
+		printf("8==D Sent %d number of bytes\n", nTx);
+		total += nTx;
+		printf("%d\n", total);
 		data_unsent = data_unsent - nTx;
 	}
 	free(data_buf);
@@ -381,25 +385,27 @@ void free_header_array(Header_array_t *a)
 	//Function to read in the data after the headers
 	//Returns -1 on failure, 0 on success
 	//Two modes: Print, or Write:
-int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd)
+int read_data(char * excess, Process mode_data, char *  filepath, int data_length, int sockfd, int excess_length)
 {
-	int excess_length;
+	//int excess_length;
 	int buffer_size = BUFSIZE_REC;
 	int data_unread = 0;
 	int nrx;
 	FILE * file = NULL;
 	
-	excess_length = strlen(excess);
+	//printf("\n\n>>%s<<\n\n", excess);
+	//excess_length = strlen(excess);
 
 	if( mode_data == WRITE)
 	{
-		file = fopen(filepath, "w+");
+		file = fopen(filepath, "wb"); //open in binary write
 		if( NULL == file )
 		{
 			fprintf(stderr, "read_data: failed to open file %s for writing.\n", filepath);
 			return(EXIT_FAILURE);
 		}
 	}
+	rewind(file);
 
 	if(verbose)
 	{
@@ -418,19 +424,20 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 	if( data_length > excess_length )
 	{
 		data_unread = data_length - excess_length;
-		char * buf = malloc( buffer_size + 1 );
+		char * buf = malloc( buffer_size +1);
 		printf("\nData unread = %d\n", data_unread);
 		
 		while( data_unread >= buffer_size )
 		{
 			nrx = recv(sockfd, buf, buffer_size, 0);
+			buf[nrx] = '\0';
 			if( mode_data == PRINT )
 				printf("%s", (char *)buf );
 			
 			if( mode_data == WRITE )
-				fwrite(buf, 1, strlen(buf), file);
+				fwrite(buf, 1, buffer_size, file);
 			
-			data_unread = data_unread - buffer_size;
+			data_unread -= buffer_size;
 		}
 		
 		if( data_unread > 0)
@@ -442,7 +449,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 			if( mode_data == PRINT )
 				printf("%s", (char *)buf );
 			if( mode_data == WRITE )
-				fwrite(buf, 1, strlen(buf), file);
+				fwrite(buf, 1, nrx, file);
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);

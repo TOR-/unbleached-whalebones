@@ -10,12 +10,13 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include "application.h"
 #include "CS_TCP.h"
 
 #define SERVER_PORT 6666	// port to be used by the server
-#define MAXREQUEST 1024		// size of request array, in bytes
+#define MAXREQUEST 150		// size of request array, in bytes
 #define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
 #define ENDMARK 10			// the newline character
 
@@ -24,7 +25,7 @@ int send_error_status(Status_code,  SOCKET);
 int parse_request(Request * , Header * , char * );
 void end_connection(int, int);
 
-int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
+int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket, int rem);
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 int list_server(Request reqRx, SOCKET connectSocket);
 
@@ -33,6 +34,7 @@ int main()
 	int retVal;         // return value from various functions //Count variable
 	int index = 0;      // interfunction index reference point
 	int numRx = 0;      // number of bytes received
+	int rem;
 	char *request = NULL;
 	verbose = true;
 	
@@ -56,6 +58,7 @@ int main()
 			//Re-init for each session
 			index = 0;
 			numRx = 0;
+			rem = 0;
 			// Create variables needed by this function
 			// The server uses 2 sockets - one to listen for connection requests,
 			// the other to make a connection with the client.
@@ -84,10 +87,11 @@ int main()
 				perror("Server main");
 				break;
 			}
-
+			//It just seems to work
+			sleep(2);
 			//Read in first chunk of request
-			numRx = recv(connectSocket, request, MAXREQUEST, 0);
-			// numRx will be number of bytes received, or an error indicator (negative value)
+			numRx = recv(connectSocket, request, MAXREQUEST - 1, 0);
+			request[MAXREQUEST - 1] = '\0';
 
 			if( numRx < 0)  // check for error
 			{
@@ -102,8 +106,10 @@ int main()
 			else // numRx > 0 => we got some data from the client
 			{
 				printf("Server: REQ received\n");
-				request[numRx] = 0;  // add 0 byte to make request into a string
+				//request[numRx] = 0;  // add 0 byte to make request into a string
 				// Print details of the request
+				//Header values and commands will always be printed out, but if
+				//not text file, not all of string will be printed.
 				printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
 				
 				/*================================================
@@ -135,13 +141,13 @@ int main()
 				printf("Data-length:%ld\n", headerRx.data_length);
 				printf("Timeout:%ld\n\n", headerRx.timeout);
 #endif 
+				rem = MAXREQUEST - index;
 
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
-						printf(">>%c<<\n\n", request[index]);
 
-						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
+						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket, rem ))
 						{
 							send_error_status(S_COMMAND_RECOGNISED, connectSocket);
 							printf("main: File written successfully\n");
@@ -190,17 +196,16 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 	return send_data(connectSocket, filename);
 }
 
-int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket)
+int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket, int rem)
 {
 	char filename [1000];
 
 	sprintf(filename, "Server_Files/%s", filepath);
-	send_error_status(110, connectSocket);
 
-	if( read_data( buf, WRITE, filename, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, WRITE, filename, data_length, connectSocket, rem) == EXIT_FAILURE )
 	{
 		printf("gift_server: Error reading data\n");
-		send_error_status(402, connectSocket); // error code ??
+		//send_error_status(402, connectSocket); // error code ??
 		return EXIT_FAILURE;
 	}
 	else
