@@ -185,13 +185,10 @@ int send_data(int sockfd, char * filepath)
 	
 	if( verbose )
 		printf("Data unread = %ld bytes\n", data_unsent);
-	int total = 0;
+		
 	while( data_unsent >= BUFSIZE_SEND )
 	{
-		printf("\nBytes read == >>%d<<\n", fread(data_buf, 1, BUFSIZE_SEND, file));
 		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
-		printf("8==D Sent %d number of bytes\n", nTx);
-		total += nTx;
 		printf("%d\n", total);
 		data_unsent = data_unsent - nTx;
 	}
@@ -199,9 +196,6 @@ int send_data(int sockfd, char * filepath)
 	if( data_unsent > 0)
 	{
 		nTx = send(sockfd, data_buf, fread(data_buf, 1, data_unsent, file), 0);
-		printf("8==D Sent %d number of bytes\n", nTx);
-		total += nTx;
-		printf("%d\n", total);
 		data_unsent = data_unsent - nTx;
 	}
 	free(data_buf);
