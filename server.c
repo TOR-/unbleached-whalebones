@@ -310,7 +310,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 
 char * create_status(Status_code status, SOCKET connectSocket)
 {
-	int str_size;
+	int str_size = 0;
 	//hold buffer to send status to client
 	char * buff;
 
