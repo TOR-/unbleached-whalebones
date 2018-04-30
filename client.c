@@ -229,9 +229,6 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 	char * target_header = "Data-length";
 	int check = -1;
 
-	
-	
-	
 	data_length_str = header_search(target_header, headers);
 	if( data_length_str == NULL )
 	{
@@ -246,7 +243,7 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 		exit(EXIT_FAILURE);
 	}
 	
-	check = read_data(remainder, WRITE, filepath, data_length, sockfd);
+	check = read_data(remainder,  WRITE, filepath, data_length, sockfd, 0);
 	
 	if(check)
 		printf("Error has occured in reading the attached data!");
@@ -283,7 +280,7 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 	}
 	
 	
-	check = read_data(remainder, PRINT, filepath, data_length, sockfd);
+	check = read_data(remainder, PRINT, filepath, data_length, sockfd, 0);
 
 	if(check)
 		printf("Error has occured in reading the attached data!");
@@ -362,6 +359,8 @@ int gift_request(char ** requestbuf, char * filepath)
 	char data_len_buf[LONG_MAX_DIGITS + 1];
 	snprintf(data_len_buf, LONG_MAX_DIGITS, "%ld", size_of_file);
 	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
+	//append_header(requestbuf, header_name[TIMEOUT], 10000);
+
 
 	finish_headers(requestbuf);
 	return EXIT_SUCCESS;

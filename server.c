@@ -15,7 +15,7 @@
 #include "CS_TCP.h"
 
 #define SERVER_PORT 6666	// port to be used by the server
-#define MAXREQUEST 1024		// size of request array, in bytes
+#define MAXREQUEST 150		// size of request array, in bytes
 #define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
 #define ENDMARK 10			// the newline character
 
@@ -24,7 +24,7 @@ int send_error_status(Status_code,  SOCKET);
 int parse_request(Request * , Header * , char * );
 void end_connection(int, int);
 
-int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket);
+int gift_server(char * request, long int data_length, char * filepath,  SOCKET connectSocket, int rem);
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket);
 int list_server(Request reqRx, SOCKET connectSocket);
 
@@ -33,6 +33,7 @@ int main()
 	int retVal;         // return value from various functions //Count variable
 	int index = 0;      // interfunction index reference point
 	int numRx = 0;      // number of bytes received
+	int rem;
 	char *request = NULL;
 	verbose = true;
 	
@@ -56,6 +57,8 @@ int main()
 			//Re-init for each session
 			index = 0;
 			numRx = 0;
+			rem = 0; //Used to calculate remaining data bytes in the initial
+					//request
 			// Create variables needed by this function
 			// The server uses 2 sockets - one to listen for connection requests,
 			// the other to make a connection with the client.
@@ -67,8 +70,10 @@ int main()
 			// Listen for a client to try to connect, and accept the connection
 			connectSocket = TCPserverConnect(listenSocket);
 			if (connectSocket == INVALID_SOCKET)  // check for error
+			{	
+				if(verbose) printf("%s: Invalid socket.\n", __FUNCTION__);
 				break;   // set the flag to prevent other things happening
-
+			}
 
 		// ============== RECEIVE REQUEST ======================================
 
@@ -81,86 +86,102 @@ int main()
 
 			if(NULL == (request = malloc(MAXREQUEST)))   // array to hold request from client
 			{
-				perror("Server main");
-				break;
+				if (verbose) printf("%s: Error allocating memory. Shutting down.\n", __FUNCTION__);
+				exit(EXIT_FAILURE);
 			}
-
+			//It just seems to work
+			sleep(2);
 			//Read in first chunk of request
-			numRx = recv(connectSocket, request, MAXREQUEST, 0);
-			// numRx will be number of bytes received, or an error indicator (negative value)
+			numRx = recv(connectSocket, request, MAXREQUEST - 1, 0);
+			//Set final byte as null
+			request[MAXREQUEST - 1] = '\0';
 
 			if( numRx < 0)  // check for error
 			{
 				printf("Problem receiving, maybe connection closed by client?\n%s\n", strerror(errno));
-				break;   // set the flag to end the loop
+				break;
 			}
 			else if (0 == numRx)  // indicates connection closing (but not an error)
 			{
 				printf("Connection closed by client\n");
-				break;   // set the flag to end the loop
+				break;
 			}
 			else // numRx > 0 => we got some data from the client
 			{
 				printf("Server: REQ received\n");
-				request[numRx] = 0;  // add 0 byte to make request into a string
 				// Print details of the request
+				//Header values and commands will always be printed out, but if
+				//not text file, not all of string will be printed.
 				printf("\nRequest received, %d bytes: \'%s\'\n", numRx, request);
 				
 				/*================================================
-				========Parse the request received================
+				=============== Parse the request ================
 				================================================*/
 
 				if(!parse_command(request, &(reqRx.cmdRx), &index))
 				{
 					printf("parse req: Invalid command\n");
-					printf("parse req: %d\n", S_COMMAND_NOT_RECOGNISED);
-					if(!send_error_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) printf("main: Error status sent\n");
+					printf("parse req: Error number %d\n", S_COMMAND_NOT_RECOGNISED);
+					if(!send_error_status(S_COMMAND_NOT_RECOGNISED, connectSocket)) printf("%s: Error status sent\n", __FUNCTION__);
 					end_connection(connectSocket, listenSocket);
 					break;
 				}
-
+				
+				//Void function. Illegal filepath not checked here
 				parse_filepath(request, &(reqRx.filepath), &index);
 
 				if(parse_header(request, &headerRx, &index) > 1){ 
-					printf("main: Bad header\n");
+					if(verbose)printf("main: Bad header\n");
 					if(!send_error_status( retVal, connectSocket)) printf("main: Error %d. Status sent\n", retVal);
-					printf("main: Terminating connection\n");
+					if(verbose) printf("main: Terminating connection\n");
 					end_connection(connectSocket, listenSocket);
 					break;
 				}
 
-#ifdef DEBUG
-				printf("\nCommand:%d\n", reqRx.cmdRx);
-				printf("Filepath:%s\n", reqRx.filepath);
-				printf("Data-length:%ld\n", headerRx.data_length);
-				printf("Timeout:%ld\n\n", headerRx.timeout);
-#endif 
+				if(verbose)
+				{
+					printf("\n\n>>RECEIVED REQUEST<<\n");
+					printf("\nCommand:%d\n", reqRx.cmdRx);
+					printf("Filepath:%s\n", reqRx.filepath);
+					printf("Data-length:%ld\n", headerRx.data_length);
+					printf("Timeout:%ld\n\n", headerRx.timeout);
+				}	
+
+				//Calculate remaining amount of data bytes
+				rem = MAXREQUEST - (index+1);
 
 				switch(reqRx.cmdRx)
 				{
 					case GIFT:
-						printf(">>%c<<\n\n", request[index]);
 
-						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket))
+						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket, rem ))
 						{
-							send_error_status(S_COMMAND_RECOGNISED, connectSocket);
+							if(!send_error_status(S_COMMAND_RECOGNISED, connectSocket)) if(verbose) printf("main: Error sending status\n");
 							printf("main: File written successfully\n");
 						}
 						else
 						{
-							printf("main: Error writing file\n");
+							printf("main: Error in gift_server writing file\n");
+							if(!send_error_status(S_SERVER_WRITE_ERROR, connectSocket)) printf("main: Error sending status\n");
 						}
 						break;
 					case WEASEL:
-                        if(weasel_server(reqRx, headerRx, connectSocket)) printf("\nmain: Cannot access filepath specified\n");
+                        if(weasel_server(reqRx, headerRx, connectSocket)) 
+						{
+							if(!send_error_status(S_ILLEGAL_FILE_PATH, connectSocket)) if(verbose) printf("main: Error sending status\n");
+							if(verbose) printf("\nmain: Cannot access filepath specified\n");
+						}
 						break;
 					case LIST:
-						if(!list_server(reqRx, connectSocket)) printf("\nmain: Contents of directory sent to client\n");
+						if(!list_server(reqRx, connectSocket)) if(verbose) printf("\nmain: Contents of directory sent to client\n");
+						break;
+					case NUM_MODE:
 						break;
 				}
+				if(verbose) printf("main: Exchange with client complete. Terminating session\n");
 				end_connection(connectSocket, listenSocket);
 			
-			}//Keep inside
+			}
 			
 		}while(true);
 		
@@ -174,12 +195,14 @@ int main()
 									
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
+	
+	//Headers need to be set up and sent seperately
     char filename[100];
 	char weasel_header[100];
 
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-	sprintf(weasel_header, "%sData-length:%d\n\n", create_status(110, connectSocket), file_length(filename));
+	sprintf(weasel_header, "%sData-length:%ld\n\n", create_status(110, connectSocket), file_length(filename));
 
 	if(send(connectSocket, weasel_header, strlen(weasel_header), 0) == -1)
 	{
@@ -190,23 +213,19 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 	return send_data(connectSocket, filename);
 }
 
-int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket)
+int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket, int rem)
 {
-	char filename [1000];
+	char filename [PATH_MAX];
 
 	sprintf(filename, "Server_Files/%s", filepath);
-	send_error_status(110, connectSocket);
 
-	if( read_data( buf, WRITE, filename, data_length, connectSocket) == EXIT_FAILURE )
+	if( read_data( buf, WRITE, filename, data_length, connectSocket, rem) == EXIT_FAILURE )
 	{
-		printf("gift_server: Error reading data\n");
-		send_error_status(402, connectSocket); // error code ??
 		return EXIT_FAILURE;
 	}
 	else
 	{
 		printf("gift_server: All good - file written\n");
-		send_error_status(110, connectSocket);
 		return EXIT_SUCCESS;
 	}
 
@@ -262,8 +281,10 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	}
 	else
 	{
-		fprintf(stderr, "Can't open the directory\n");
-		send_error_status(340, connectSocket); // define new error
+		fprintf(stderr, "%s:can't open the directory %s: %s\n",
+				__FUNCTION__, dir_name, strerror(errno));
+		send_error_status(S_FILE_NOT_FOUND, connectSocket); // define new error
+
 	}
 
 	char *dir_list = (char *)malloc(char_count + 20); // 20 provides room for length of header
@@ -289,7 +310,7 @@ int list_server(Request reqRx, SOCKET connectSocket)
 
 char * create_status(Status_code status, SOCKET connectSocket)
 {
-	int str_size;
+	int str_size = 0;
 	//hold buffer to send status to client
 	char * buff;
 

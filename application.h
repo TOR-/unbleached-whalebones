@@ -2,6 +2,8 @@
 #define APPLICATION_H
 
 #include <stdbool.h>
+#include <errno.h>
+
 
 #define READ_ONLY "r"
 #define DEBUG
@@ -14,6 +16,8 @@
 #define BUFSIZE_SEND 512
 #define BUFSIZE_REC 256
 #define LONG_MAX_DIGITS 10
+
+#define BUFSIZE 240
 
 
 #define SWDIR	"Server_Files/"
@@ -79,7 +83,7 @@ bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
-int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd);
+int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd, int rem);
 int send_data(int socket, char * filepath);
 
 typedef enum {
