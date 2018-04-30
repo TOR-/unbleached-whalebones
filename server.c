@@ -19,6 +19,8 @@
 #define MAXRESPONSE 90		// size of response array (at least 35 bytes more)
 #define ENDMARK 10			// the newline character
 
+const char * server_root = "Server_Files/"; // Server root directory
+
 static int send_status(Status_code,  SOCKET);
 static void end_connection(int);
 
@@ -168,14 +170,20 @@ int main()
 						}
 						break;
 					case WEASEL:
-                        if(!weasel_server(reqRx, headerRx, connectSocket)) 
-						{	//Illegal filepath
-							if(verbose) printf("\nmain: Cannot access filepath specified\n");
-							//send_status(S_ILLEGAL_FILE_PATH, connectSocket); Is status code sent from within weasel?
-						}
+                        if(weasel_server(reqRx, headerRx, connectSocket) 
+								!= EXIT_SUCCESS) 
+							fprintf(stderr,
+								"%s: failed to satisfy weasel request\n",
+								__FUNCTION__);
+						else
+							if(verbose)
+								printf("%s:weasel response sent\n",
+										__FUNCTION__);
 						break;
 					case LIST:
-						if(!list_server(reqRx, connectSocket)) if(verbose) printf("\nmain: Contents of directory sent to client\n");
+						if(!list_server(reqRx, connectSocket)) 
+							if(verbose) 
+								printf("\nmain: Contents of directory sent to client\n");
 						break;
 					case NUM_MODE:	//Never reaches this as cmd has already been tested, but gets rid of warning from gcc
 						break;
@@ -192,19 +200,37 @@ int main()
 									
 int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 {
-	
-	//Headers need to be set up and sent seperately
-    char filename[100];
+    char filename[NAME_MAX]; // Not guaranteed 
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-	send_status(S_COMMAND_SUCCESSFUL, connectSocket);
+	//Set up headers for sending
+	char * headers;
 
+	// Calculate legth of data
+	int datalength = file_length(filename);
+	if(0 >= datalength) return datalength;
+	// Add data-length header and value	
+	headers = malloc(
+			strlen(header_name[DATA_LENGTH]) + 1 /* : */+ 
+			LONG_MAX_DIGITS + 2 /* \n\n */ + 1 /* \0 */);
+	sprintf(headers, "%s:%d\n\n", header_name[DATA_LENGTH], datalength);
+	
+	send_status(S_COMMAND_SUCCESSFUL, connectSocket);
+	if(verbose) printf("%s: sending headers>>%s<<\n",
+			__FUNCTION__, headers);
+	if( -1 == send(connectSocket, headers, strlen(headers), 0))
+	{
+		fprintf(stderr,
+				"%s: failed to send headers: %s\n",
+				__FUNCTION__, strerror(errno));
+		return EXIT_FAILURE;
+	}
 	return send_data(connectSocket, filename);
 }
 
 int gift_server(char * buf, long int data_length, char * filepath, SOCKET connectSocket)
 {
-	char filename [1000];
+	char filename[NAME_MAX];
 
 	sprintf(filename, "Server_Files/%s", filepath);
 
@@ -226,17 +252,15 @@ int list_server(Request reqRx, SOCKET connectSocket)
 	DIR *dp;
 	struct dirent *ep; 
 	int char_count = 0; // counts length of list to send
-	char dir_name[100]; // large enough to store full file path
-	char *response = NULL; // to be realloc memory
+	char dir_name[PATH_MAX]; // Not guaranteed, should be malloc'd instead
+	char *response = NULL; // must be malloc'd
 	int retVal = 0;
-	const char * server_root = "Server_Files/";
 	strncpy(dir_name, server_root, strlen(server_root) + 1);
 	if(strcmp(reqRx.filepath, ".")) // if subdirectory required append to file path
 	{   
 		strcat(dir_name, reqRx.filepath);
 		dir_name[strlen(dir_name)-1] = '\0'; //remove extra SPACE character
 	}
-
 	dp = opendir(dir_name); // open directory
 	//include length for joe
 	if(dp != NULL)
@@ -261,8 +285,6 @@ int list_server(Request reqRx, SOCKET connectSocket)
 
 	}
 
-	printf("REMOVE ONCE CHECKED THAT char_count == strlen(response) (%d %s %d)\n",
-			char_count, char_count == strlen(response)? "==":"!=", strlen(response));
 	char * headers, length[LONG_MAX_DIGITS +1];
 	snprintf(length, LONG_MAX_DIGITS, "%u", strlen(response)); 
 	//append_header(&headers, header_name[DATA_LENGTH], length);

@@ -30,8 +30,10 @@ bool verbose;
 
 //typedef enum {ALLOC_FAIL = -1, } Error;
 typedef enum {GIFT, WEASEL, LIST, NUM_MODE} Mode_t;
-extern const char * mode_strs[];
-extern const char * header_name[];
+//see application.c
+extern char * mode_strs[];
+//see application.c
+extern char * header_name[];
 typedef enum {DATA_LENGTH, TIMEOUT, IF_EXISTS, NUM_HEAD} H_name;
 typedef enum {PRINT, WRITE} Process;
 
@@ -81,7 +83,7 @@ bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
-int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd);
+int read_data(char * remainder,  Process mode_data, char * filepath, int sockfd);
 int send_data(int socket, char * filepath);
 
 typedef enum {
@@ -121,6 +123,6 @@ typedef enum {
 
 //Client error status descriptions
 //see application.c
-extern const char * status_descriptions[];
+extern char * status_descriptions[];
 
 #endif

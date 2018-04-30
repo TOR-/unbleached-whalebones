@@ -39,9 +39,7 @@ int (*mode_response_funs[])(char * remainder, SOCKET sockfd, char * filepath, He
 char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * port);
 char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 char * extract_status(char * buf, char ** description, int *status_code);
-char * header_search(char * target_header, Header_array_t * header_array);
-
-
+int header_search(char * target_header, Header_array_t * header_array);
 
 int main(int argc, char ** argv)
 {
@@ -51,9 +49,7 @@ int main(int argc, char ** argv)
 
 	// Set flag default values
 	verbose = false;
-
 	filepath = process_input(argc, argv, &mode, ip, &port);
-
 
 	if(filepath == NULL)
 	{
@@ -62,7 +58,7 @@ int main(int argc, char ** argv)
 	}
 
 	if(verbose) printf("client: verbose mode enabled\n");
-	if(verbose) printf("Running in mode %d\n", mode);
+	if(verbose) printf("client: running in mode %s\n", mode_strs[mode]);
 
 	SOCKET sockfd = TCPSocket(AF_INET);
 
@@ -224,72 +220,25 @@ int gift_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 }
 int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
-	long int data_length = -1;
-	char * data_length_str = NULL;
-	char * target_header = "Data-length";
-	int check = -1;
-
-	
-	
-	
-	data_length_str = header_search(target_header, headers);
-	if( data_length_str == NULL )
+	if( EXIT_SUCCESS 
+			!= read_data(remainder, WRITE, filepath, sockfd))
 	{
-		printf("List Response: Error Data Length Header not found\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "%s:Error has occured reading the attached data!", 
+			__FUNCTION__);
+		return EXIT_FAILURE;
 	}
-	data_length = atoi( data_length_str );
-	
-	if( data_length < 0 )
-	{
-		printf("List Response: Error Data Length was negative\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	check = read_data(remainder, WRITE, filepath, data_length, sockfd);
-	
-	if(check)
-		printf("Error has occured in reading the attached data!");
-	
-	
-	free(data_length_str);
-
 	return EXIT_SUCCESS;
 }
 
 int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array_t * headers)
 {
-	long int data_length = -1;
-	int check = -1;
-	char * data_length_str = NULL;
-	char * target_header = "Data-length";
-	
-	if(verbose)
-		printf("Number of headers: %zu\n",headers->used);
-	
-	data_length_str = header_search(target_header, headers);
-	if( data_length_str == NULL )
+	if( EXIT_SUCCESS 
+			!= read_data(remainder, PRINT, filepath, sockfd))
 	{
-		printf("List Response: Error Data Length Header not found\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "%s:Error has occured reading the attached data!", 
+			__FUNCTION__);
+		return EXIT_FAILURE;
 	}
-	
-	data_length = atoi( data_length_str );
-	
-	if( data_length < 0 )
-	{
-		printf("List Response: Error Data Length was negative\n");
-		exit(EXIT_FAILURE);
-	}
-	
-	
-	check = read_data(remainder, PRINT, filepath, data_length, sockfd);
-
-	if(check)
-		printf("Error has occured in reading the attached data!");
-	
-	free(data_length_str);
-	
 	return EXIT_SUCCESS;
 }
 
@@ -472,24 +421,16 @@ char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * p
 	return filepath;
 }
 
-//Returns the value associated with the target header as a string
-//Returns NULL if target header is not found
-char * header_search(char * target_header, Header_array_t * headers)
+/* Returns index of <target_header> in <headers> or EXIT_FAILURE on error */
+int header_search(char * target_header, Header_array_t * headers)
 {
-	int i, check = -1;
-	char* needle;
-	
+	size_t i;
 	for(i = 0; i < headers->used ; i++)
 	{
-		check = strcmp(headers->array[i].name,target_header);
-		if(check == 0)
+		if(0 == strcmp(headers->array[i].name, target_header))
 		{
-			needle = malloc( strlen(headers->array[i].value) );
-			needle = headers->array[i].value;
-			if( needle == NULL )
-				perror("Malloc Error in header_search: ");
-			return needle;
+			return i;
 		}
 	}
-	return NULL;
+	return EXIT_FAILURE;
 }

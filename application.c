@@ -7,9 +7,9 @@
 
 #include "application.h"
 
-const char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
-const char * header_name[] = {"Data-length", "Timeout", "If-exists"};
-const char *status_descriptions[] = 
+char * mode_strs[] = {"GIFT", "WEASEL", "LIST"};
+char * header_name[] = {"Data-length", "Timeout", "If-exists"};
+char *status_descriptions[] = 
 {
 								
 		" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", 	  //1-9
@@ -138,10 +138,13 @@ long int file_length(char *filepath)
 		length = ftell(file);
 		if(length < 0)
 		{
-			fprintf(stderr, "%s: file length < 0 (%d < 0) %s.\n", __FUNCTION__, length, strerror(errno));
+			fprintf(stderr, 
+					"%s: file length < 0 (%d < 0) %s.\n",
+				   	__FUNCTION__, length, strerror(errno));
 		} else {
 			if(verbose)	
-				printf("%s:%s is %d bytes long.\n", __FUNCTION__, filepath, length);
+				printf("%s:%s is %d bytes long.\n", 
+						__FUNCTION__, filepath, length);
 		}
 		if(fclose(file) != 0)
 			fprintf(stderr, "%s:failed to close %s, %s.\n", 
@@ -178,7 +181,9 @@ int send_data(int sockfd, char * filepath)
 		char * data_buf = malloc( BUFSIZE + 1 );
 		if( data_buf == NULL)
 		{
-			perror("Error in send_data");
+			fprintf(stderr,
+					"%s:failed to allocate memory for buffer: %s\n",
+					__FUNCTION__, strerror(errno));
 			return EXIT_FAILURE;
 		}
 		
@@ -381,28 +386,54 @@ void free_header_array(Header_array_t *a)
 	a->used = a->size = 0;
 }
 
-	//Function to read in the data after the headers
-	//Returns -1 on failure, 0 on success
-	//Two modes: Print, or Write:
-int read_data(char * remainder, Process mode_data, char *  filepath, int data_length, int sockfd)
+/* Function to read in data after the headers
+ * Returns EXIT_FAILURE or EXIT_SUCCESS where appropriate
+ * Two modes: 
+ * 	Print: write data to stdout (e.g. LIST)
+ * 	Write: write data to file at <filepath> (e.g. WEASEL) */
+int read_data(char * remainder, Process mode_data, char * filepath, int sockfd)
 {
 	int remainder_length;
 	int buffer_size = BUFSIZE;
 	int data_unread = 0;
+	int written = 0;
 	int nrx;
 	FILE * file;
-	
+
+	//========= Retrieve data length from header
+	int data_length = -1;
+	int i = EXIT_FAILURE;	
+	if( EXIT_FAILURE ==(i = header_search(header_name[DATA_LENGTH], headers)))
+	{
+		fprintf(stderr, "%s:failed to find %s header\n",
+				__FUNCTION__, header_name[DATA_LENGTH]);
+		return EXIT_FAILURE;
+	}
+	if(0 > sscanf(headers->array[i].value, "%d", &data_length))
+	{
+		fprintf(stderr, "%s:failed to find a value for %s header.\n",
+				__FUNCTION__, header_name[DATA_LENGTH]);
+		return EXIT_FAILURE;
+	}
+	if( data_length < 0 )
+	{
+		fprintf(stderr, "%s:data length negative (%ld)\n", 
+				__FUNCTION__, data_length);
+		return EXIT_FAILURE;
+	} else if (verbose)
+		printf("%s:data length(%ld)\n", __FUNCTION__, data_length);
+	//========== Data length retrieved
+
 	remainder_length = strlen(remainder);
 	
 	if( mode_data == WRITE)
 	{
-		errno = 0;
 		file = fopen(filepath, "w+");
 		if( NULL == file )
 		{
-			fprintf(stderr, "read_data: failed to open file %s for writing.\n", filepath);
-			printf("Error %d \n", errno);
-			return(EXIT_FAILURE);
+			fprintf(stderr, "%s: failed to open file %s for writing: %s\n", 
+					__FUNCTION__, filepath, strerror(errno));
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -412,32 +443,44 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 			printf("Your boy here printing out da list of all dem files\n");
 		if(mode_data == WRITE)
 			printf("Your boy here writing the stuff into dat file\n");
-			printf("Remainder Length: %d\n, Data Length: %d\n", remainder_length, data_length);
+			printf("%s:Data-length: %d\n", 
+					__FUNCTION__, data_length);
 	}
 	
 	if(mode_data == PRINT)
 		printf("%s", (char *)remainder );
 	if(mode_data == WRITE)
-		printf("characters written = %lu rem length = %d\n", fwrite(remainder, 1, remainder_length, file), remainder_length);
-	
+	{
+		if( 0 == (written = fwrite(remainder, 1, remainder_length, file)))
+		{
+			fprintf(stderr, "%s:error writing remainder to file: %s.\n",
+					__FUNCTION__, strerror(errno));
+			return EXIT_FAILURE;
+		}
+		if(verbose) 
+			printf("%s: wrote %d bytes of remainder data to %s\n",
+					__FUNCTION__, written, filepath);
+	}
 	if( data_length > remainder_length )
 	{
 		data_unread = data_length - remainder_length;
+		if(verbose) 
+			printf("%s:data left to write = %d\n", __FUNCTION__, data_unread);
 		char * buf = malloc( buffer_size + 1 );
-		printf("\nData unread = %d\n", data_unread);
 		
 		while( data_unread >= buffer_size )
 		{
 			nrx = recv(sockfd, buf, buffer_size, 0);
+			if(verbose)
+				printf("%s:writing %d bytes\n", __FUNCTION__, nrx); 
+
 			if( mode_data == PRINT )
 				printf("%s", (char *)buf );
-			
-			if( mode_data == WRITE )
+			else if( mode_data == WRITE )
 				fwrite(buf, 1, strlen(buf), file);
 			
 			data_unread = data_unread - buffer_size;
 		}
-		
 		
 		if( data_unread > 0)
 		{
@@ -451,14 +494,12 @@ int read_data(char * remainder, Process mode_data, char *  filepath, int data_le
 			data_unread = data_unread - buffer_size;
 		}
 		free(buf);
-			//printf("\nData unread = %d\n", data_unread);
 	}
 	if(data_unread != 0)
 		return(EXIT_FAILURE);
 	
 	if(mode_data == WRITE)
 		fclose(file);
-	
 	
 	return(EXIT_SUCCESS);
 }
