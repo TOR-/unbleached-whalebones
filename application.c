@@ -170,7 +170,7 @@ int send_data(int sockfd, char * filepath)
 	rewind(file);
 
 	data_unsent = length;
-	printf("HELP: data length = %d\n", data_unsent);
+	printf("HELP: data length = %ld\n", data_unsent);
 	
 	if( verbose )
 		printf("%s:%ld data bytes to be sent\n", __FUNCTION__, data_unsent);
@@ -188,7 +188,6 @@ int send_data(int sockfd, char * filepath)
 	while( data_unsent >= BUFSIZE_SEND )
 	{
 		nTx = send(sockfd, data_buf, BUFSIZE_SEND, 0);
-		printf("%d\n", total);
 		data_unsent = data_unsent - nTx;
 	}
 	
