@@ -201,7 +201,8 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 			return EXIT_FAILURE;
 		}
 	}
-	if(verbose) printf("%s: received %d headers\n", __FUNCTION__, n_headers-1);
+	if(verbose) printf("%s: received %d headers\n",
+		   	__FUNCTION__, n_headers?n_headers-1:n_headers);
 	// Check status
 	if( status_code > S_CLIENT_ERROR )
 	{

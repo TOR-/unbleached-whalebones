@@ -415,7 +415,7 @@ int read_data(char * excess, Process mode_data, char *  filepath, int data_lengt
 
 	if( mode_data == WRITE)
 	{
-		file = fopen(filepath, "w+"); //open in binary write
+		file = fopen(filepath, "w+");
 		if( NULL == file )
 		{
 			fprintf(stderr, 
