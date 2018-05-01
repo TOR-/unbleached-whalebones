@@ -376,10 +376,12 @@ int parse_header(char * buff, Header * head, int * index)
 	
 }
 
-// TODO implement error checking here
 void init_header_array(Header_array_t *a, size_t initial) 
 {
 	a->array = (Header_t *)malloc(initial * sizeof(Header_t));
+	if(a->array == NULL)
+		fprintf(stderr, "%s:failed to allocate memory for header array:%s.\n",
+				__FUNCTION__, strerror(errno));
 	a->used = 0;
 	a->size = initial;
 }

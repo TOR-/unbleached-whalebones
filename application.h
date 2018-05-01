@@ -51,11 +51,6 @@ typedef struct req{
     Header * header;
 } Request;
 
-typedef struct Response_t{
-	char * header;
-	char * body;
-}response_t;
-
 typedef struct{
 	char * name;
 	char * value;
@@ -73,18 +68,16 @@ void free_header_array(Header_array_t *a);
 
 int append_header(char ** header, char * name, char * content);
 int finish_headers(char ** headers);
+char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 
-
+int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd, int rem);
+int send_data(int socket, char * filepath);
 long int file_length(char *filepath);
-int send_data(int sockfd, char * filepath);
 
 
 bool parse_command(char * buff, Mode_t * cmdRx, int * index);
 int parse_filepath(char * buff, char ** filepath, int * index);
-char * extract_header(char * buf, Header_array_t * header_array, bool * finished);
 int parse_header(char * buff, Header * head, int * index);
-int read_data(char * remainder,  Process mode_data, char * filepath, int data_length, int sockfd, int rem);
-int send_data(int socket, char * filepath);
 
 typedef enum {
 /* ↓ 1xx successful transaction ↓ */

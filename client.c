@@ -460,7 +460,7 @@ char * process_input(int argc, char ** argv, int * mode, char * ip, uint16_t * p
 				printf("-q\t--quiet\tRun the program in quiet mode. Default.\n\n");
 				printf("-g\t--gift\tGIFT server with file <filepath>.\n");
 				printf("-w\t--weasel\tWeasel(get) file <filepath> from server.\n");
-//				printf("-l\t--list\tList files from <filepath> and below.\n");
+				printf("-l\t--list\tList files from <filepath> and below.\n");
 				printf("-h\t--help\tDisplay this help.\n");
 				printf("-i\t--ip\tIPv4 of host to connect to.\n");
 				printf("-p\t--port\tPort on host to connect to.\n");
