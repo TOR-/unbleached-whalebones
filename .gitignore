@@ -60,3 +60,6 @@ client
 
 # Exuberant ctags file
 tags
+
+# images
+*.jpg
