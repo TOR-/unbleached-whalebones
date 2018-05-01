@@ -156,7 +156,8 @@ int main()
 
 						if(!gift_server((request + index), headerRx.data_length, reqRx.filepath, connectSocket, rem ))
 						{
-							if(!send_error_status(S_COMMAND_RECOGNISED, connectSocket)) if(verbose) printf("main: Error sending status\n");
+							if(!send_error_status(S_COMMAND_SUCCESSFUL, connectSocket)) 
+								if(verbose) printf("main: Error sending status\n");
 							printf("main: File written successfully\n");
 						}
 						else
@@ -225,6 +226,7 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 	}
 	else
 	{
+		if(verbose)
 		printf("gift_server: All good - file written\n");
 		return EXIT_SUCCESS;
 	}
