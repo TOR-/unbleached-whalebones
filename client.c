@@ -348,8 +348,6 @@ int gift_request(char ** requestbuf, char * filepath)
 	FILE *file;
 	long int size_of_file;
 	
-	//input_file = file_parameters(filepath, &size_of_file);
-
 	if((file = fopen(filepath, READ_ONLY)) == NULL )
 	{	
 		fprintf(stderr, "%s:error opening %s: %s.\n",
@@ -360,8 +358,6 @@ int gift_request(char ** requestbuf, char * filepath)
 	char data_len_buf[LONG_MAX_DIGITS + 1];
 	snprintf(data_len_buf, LONG_MAX_DIGITS, "%ld", size_of_file);
 	append_header(requestbuf, header_name[DATA_LENGTH], data_len_buf);
-	//append_header(requestbuf, header_name[TIMEOUT], 10000);
-
 
 	finish_headers(requestbuf);
 	return EXIT_SUCCESS;
