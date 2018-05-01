@@ -202,11 +202,11 @@ int weasel_server(Request reqRx, Header headerRx, SOCKET connectSocket)
 
     sprintf(filename, "Server_Files/%s", reqRx.filepath);
 
-	sprintf(weasel_header, "%sData-length:%ld\n\n", create_status(110, connectSocket), file_length(filename));
+	sprintf(weasel_header, "%sData-length:%ld\n\n", create_status(S_COMMAND_SUCCESSFUL, connectSocket), file_length(filename));
 
 	if(send(connectSocket, weasel_header, strlen(weasel_header), 0) == -1)
 	{
-		printf("send_status: Error using send()\n");
+		printf("weasel_server: Error using send()\n");
 		return EXIT_FAILURE;
 	}
 
@@ -233,15 +233,15 @@ int gift_server(char * buf, long int data_length, char * filepath, SOCKET connec
 
 int list_server(Request reqRx, SOCKET connectSocket)
 {
-
 	DIR *dp;
 	struct dirent *ep; 
 	int char_count = 0; // counts length of list to send
-	char dir_name[100]; // large enough to store full file path
+	char dir_name[PATH_MAX]; // not guarenteed to hold full file path
 	char *response = NULL; // to be realloc memory
 	char *new_response = NULL;
 	int retVal = 0;
 
+	memset(dir_name, 0, PATH_MAX);
 	strcat(dir_name, "Server_Files/");
 
 	if(strcmp(reqRx.filepath, ".")) // if subdirectory required append to file path

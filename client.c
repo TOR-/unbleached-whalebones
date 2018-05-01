@@ -48,6 +48,7 @@ int main(int argc, char ** argv)
 	char * filepath, ip[IPV4LEN];
 	uint16_t port = 0;
 	int mode;
+	int ret = 0;
 
 	// Set flag default values
 	verbose = false;
@@ -57,7 +58,7 @@ int main(int argc, char ** argv)
 
 	if(filepath == NULL)
 	{
-		fprintf(stderr, "No file specified.\n");
+		fprintf(stderr, "client:No file specified.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -69,8 +70,8 @@ int main(int argc, char ** argv)
 	// now connected
 	// mode switch: WEASEL, GIFT, LIST
 	char * requestbuf;
-	// Construct request
-	if(0 != request(mode, &requestbuf, filepath))
+	// Construct request head section
+	if(EXIT_SUCCESS != request(mode, &requestbuf, filepath))
 		return EXIT_FAILURE;
 	if(verbose)printf("client: sending request:\n>>>%s<<<\n", requestbuf);
 
@@ -78,8 +79,7 @@ int main(int argc, char ** argv)
 	if(TCPclientConnect(sockfd, ip, port) != EXIT_SUCCESS)
 		return EXIT_FAILURE;
 
-	int ret = 0;
-	// ============= Send Request ================================================
+	// ============= Send Request headers =========================================
 	if((ret = send(sockfd, requestbuf, strlen(requestbuf), 0)) < 1)
 	{
 		fprintf(stderr, "client: %s.\n", strerror(errno));
@@ -87,21 +87,28 @@ int main(int argc, char ** argv)
 	}
 	free(requestbuf);
 	
-	// ============= Sending Data ================================================
+	// ============= Send Data ====================================================
 	if( mode == GIFT )
 	{
-		int check = send_data(sockfd, filepath);
-		if(check == 0)
-			printf("Data has been sent to the server\n");
+		ret = send_data(sockfd, filepath);
+		if(ret == EXIT_SUCCESS)
+		{
+			if(verbose)
+				printf("client:data sent successfully\n");
+		}
 		else
-			printf("Error sending data to the server\n");
+		{
+			fprintf(stderr, "client: error sending data to the server\n");
+			return EXIT_FAILURE;
+		}
 	}
 	
 	
 	// ============= Request Sent ================================================
 
 	// ============= Deal with Response ==========================================
-	response(sockfd, mode, filepath);
+	if(EXIT_SUCCESS != (ret = response(sockfd, mode, filepath)))
+		return ret;
 	// FINISHED!!!!
 	free(filepath);
 	return EXIT_SUCCESS;
@@ -145,18 +152,20 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 	char * responsebuf = (char *)malloc(MAXRESPONSE);
 	if(NULL == responsebuf)
 	{
-		fprintf(stderr, "client: failed to allocate memory for response. %s\n",
+		fprintf(stderr, "response: failed to allocate memory:%s\n",
 				strerror(errno));
 		return EXIT_FAILURE;
 	}
-	// Receive response
+	// =========== Receive response ===============================================
 	char * pos; // Current position in response buffer
 	// Extract status	
 	memset(responsebuf, 0, MAXRESPONSE);
 	ret = recv(sockfd, responsebuf, MAXRESPONSE, 0);
-	if(NULL == (pos = extract_status(responsebuf, &status_description, &status_code)))
+	if(NULL == 
+			(pos = extract_status(responsebuf, &status_description, &status_code)))
 	{
-		fprintf(stderr, "client: failed to find a status in response.\n");
+		fprintf(stderr, 
+				"%s: failed to find a status in response.\n", __FUNCTION__);
 		return EXIT_FAILURE;
 	}
 
@@ -189,29 +198,26 @@ static int response(SOCKET sockfd, Mode_t mode, char * filepath)
 		if(MAXRESPONSE == spaces) // No header has been processed
 		{
 			fprintf(stderr, "response: header too long for processing.\n");
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 	}
-	if(verbose) printf("client: finished receiveing headers.\n");
+	if(verbose) printf("%s: received %d headers\n", __FUNCTION__, n_headers-1);
 	// Check status
 	if( status_code > S_CLIENT_ERROR )
 	{
 		fprintf(stderr, "response: request failed: %d %s.\n...Exiting...\n",
 				status_code, status_description);
-		exit(EXIT_FAILURE);
+		return EXIT_FAILURE;
 	}
 	else if(verbose) printf("response: response status \"%d %s\".\n",
 			status_code, status_description);
 	free(status_description);
-	// Check mode to see if there should be data ( WEASEL )
-	// 	Process headers
-	//		search headers for data-length header	
-	//		if present: 
-	// 			Receive any data
 	if(verbose) 
-		printf("client: entering mode-specific response processing.\n Mode: %s.\n", 
-				mode_strs[mode]);
-	mode_response_funs[mode](last_term + 1, sockfd, filepath, &headers);
+		printf("%s:entering mode-specific response processing.\n Mode: %s.\n", 
+				__FUNCTION__, mode_strs[mode]);
+	if(EXIT_SUCCESS != 
+		(ret=mode_response_funs[mode](last_term + 1, sockfd, filepath, &headers)))
+		return ret;
 
 	free_header_array(&headers);
 	free(responsebuf);
@@ -232,25 +238,23 @@ int weasel_response(char * remainder, SOCKET sockfd, char * filepath, Header_arr
 	data_length_str = header_search(target_header, headers);
 	if( data_length_str == NULL )
 	{
-		printf("List Response: Error Data Length Header not found\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr,"%s:Data-length header not found\n", __FUNCTION__);
+		return EXIT_FAILURE;
 	}
 	data_length = atoi( data_length_str );
-	
 	if( data_length < 0 )
 	{
-		printf("List Response: Error Data Length was negative\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr,"%s:Data-length negative\n", __FUNCTION__);
+		return EXIT_FAILURE;
 	}
 	
-	check = read_data(remainder,  WRITE, filepath, data_length, sockfd, 0);
-	
-	if(check)
-		printf("Error has occured in reading the attached data!");
-	
-	
+	if(EXIT_SUCCESS != 
+		(check = read_data(remainder,  WRITE, filepath, data_length, sockfd, 0)))
+	{
+		fprintf(stderr, "%s:error reading data from stream.\n", __FUNCTION__);
+		return check;
+	}
 	free(data_length_str);
-
 	return EXIT_SUCCESS;
 }
 
@@ -261,32 +265,28 @@ int list_response(char * remainder, SOCKET sockfd, char * filepath, Header_array
 	char * data_length_str = NULL;
 	char * target_header = "Data-length";
 	
-	if(verbose)
-		printf("Number of headers: %zu\n",headers->used);
-	
 	data_length_str = header_search(target_header, headers);
 	if( data_length_str == NULL )
 	{
-		printf("List Response: Error Data Length Header not found\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr,"%s:Data-length header not found\n", __FUNCTION__);
+		return EXIT_FAILURE;
 	}
-	
 	data_length = atoi( data_length_str );
-	
 	if( data_length < 0 )
 	{
-		printf("List Response: Error Data Length was negative\n");
-		exit(EXIT_FAILURE);
+		fprintf(stderr,"%s:Data-length negative\n", __FUNCTION__);
+		return EXIT_FAILURE;
 	}
 	
-	
-	check = read_data(remainder, PRINT, filepath, data_length, sockfd, 0);
-
-	if(check)
-		printf("Error has occured in reading the attached data!");
-	
+	printf("\n***LIST OF FILES IN %s***\n", filepath);	
+	if(EXIT_SUCCESS != 
+		(check = read_data(remainder, PRINT, filepath, data_length, sockfd, 0)))
+	{
+		fprintf(stderr, "%s:error reading data from stream.\n", __FUNCTION__);
+		return check;
+	}
+	printf("*** oOo ***\n");
 	free(data_length_str);
-	
 	return EXIT_SUCCESS;
 }
 

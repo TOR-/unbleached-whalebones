@@ -2,7 +2,7 @@ CC:=clang-5.0
 
 LIBS:=
 
-CFLAGS:= --analyze -Wall -Wextra -g $(LIBS)
+CFLAGS:= -Wall -Wextra -g $(LIBS)
 
 COMMON_OBJS:= CS_TCP.o application.o
 
